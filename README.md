@@ -1,2 +1,3 @@
 # DS6
-DS6: Deformation-aware learning for small vesselsegmentation with small, imperfectly labeled dataset
+Official code of the paper "DS6: Deformation-aware learning for small vesselsegmentation with small, imperfectly labeled dataset" (https://arxiv.org/abs/2006.10802)
+
