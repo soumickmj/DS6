@@ -28,6 +28,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-model",
+                        type=int,
                         default=1,
                         help="1{U-Net}; \n"
                              "2{U-Net_Deepsup}; \n"
@@ -70,33 +71,39 @@ if __name__ == '__main__':
                         help="To use half precision on model weights.")
 
     parser.add_argument("-batch_size",
+                        type=int,
                         default=20,
                         help="Batch size for training")
     parser.add_argument("-num_epochs",
+                        type=int,
                         default=50,
                         help="Number of epochs for training")
     parser.add_argument("-learning_rate",
+                        type=float,
                         default=0.01,
                         help="Learning rate")
     parser.add_argument("-patch_size",
+                        type=int,
                         default=64,
                         help="Patch size of the input volume")
     parser.add_argument("-stride_depth",
+                        type=int,
                         default=16,
                         help="Strides for dividing the input volume into patches in depth dimension")
     parser.add_argument("-stride_width",
+                        type=int,
                         default=32,
                         help="Strides for dividing the input volume into patches in width dimension")
     parser.add_argument("-stride_length",
-                        default=32,
-                        help="Strides for dividing the input volume into patches in length dimension")
-    parser.add_argument("-stride_length",
+                        type=int,
                         default=32,
                         help="Strides for dividing the input volume into patches in length dimension")
     parser.add_argument("-samples_per_epoch",
+                        type=int,
                         default=8000,
                         help="Number of samples per epoch")
     parser.add_argument("-num_worker",
+                        type=int,
                         default=8,
                         help="Number of worker threads")
 
@@ -107,22 +114,22 @@ if __name__ == '__main__':
     OUTPUT_PATH = args.output_path
 
     LOAD_PATH = args.load_path
-    CHECKPOINT_PATH = OUTPUT_PATH + MODEL_NAME + '/checkpoint/'
-    TENSORBOARD_PATH_TRAINING = OUTPUT_PATH + MODEL_NAME + '/tensorboard/tensorboard_training/'
-    TENSORBOARD_PATH_VALIDATION = OUTPUT_PATH + MODEL_NAME + '/tensorboard/tensorboard_validation/'
-    TENSORBOARD_PATH_TESTING = OUTPUT_PATH + MODEL_NAME + '/tensorboard/tensorboard_testing/'
+    CHECKPOINT_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '/checkpoint/'
+    TENSORBOARD_PATH_TRAINING = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_training/'
+    TENSORBOARD_PATH_VALIDATION = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_validation/'
+    TENSORBOARD_PATH_TESTING = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_testing/'
 
-    LOGGER_PATH = OUTPUT_PATH + MODEL_NAME + '.log'
+    LOGGER_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '.log'
 
-    logger = Logger(MODEL_NAME, OUTPUT_PATH).get_logger()
-    test_logger = Logger(MODEL_NAME + '_test', OUTPUT_PATH).get_logger()
+    logger = Logger(MODEL_NAME, LOGGER_PATH).get_logger()
+    test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
     # Model
     model = getModel(args.model)
     model.cuda()
 
     # No loading
-    if bool(LOAD_PATH):
+    if not bool(LOAD_PATH):
         optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
         if args.apex:
             model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
@@ -156,11 +163,12 @@ if __name__ == '__main__':
             pipeline.test(test_logger=test_logger)
 
         if args.predict:
-            pipeline = Pipeline(model=getModel(args.model), optimizer=optimizer, logger=logger, with_apex=args.apex,
+            is_predict_only = (not args.train) and (not args.test)
+            pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex,
                                 num_epochs=args.num_epochs, dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH,
                                 writer_training=writer_training, writer_validating=writer_validating,
                                 stride_depth=args.stride_depth, stride_length=args.stride_length,
-                                stride_width=args.stride_width)
+                                stride_width=args.stride_width, predict_only=is_predict_only)
             pipeline.predict(MODEL_NAME, args.predictor_path, args.predictor_label_path, OUTPUT_PATH)
 
 

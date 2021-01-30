@@ -82,7 +82,10 @@ def load_model_with_amp(model, CHECKPOINT_PATH, batch_index='best', learning_rat
     """
     print('Loading model...')
     model.cuda()
-    checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
+    try: #TODO dirty fix for now
+        checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
+    except:
+        checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '50.pth')
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     model.load_state_dict(checkpoint['state_dict'])
@@ -114,7 +117,7 @@ def convert_and_save_tif(image3D, output_path, filename='output.tif', isColored=
     Method to convert 3D tensor to tiff image
     """
     image_list = []
-    num = 3 #if isColored else 1
+    num = 3# if isColored else 1
     for i in range(0, int(image3D.shape[0] / num)):
         index = i * num
         tensor_image = image3D[index:(index + num), :, :]

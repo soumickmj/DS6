@@ -40,7 +40,7 @@ class Pipeline:
                  checkpoint_path, dir_path, writer_training, writer_validating, deform=False,
                  patch_size=64, stride_depth=64, stride_length=64, stride_width=64,
                  samples_per_epoch=8000, batch_size=16,
-                 training_set=None, validation_set=None, test_set=None):
+                 training_set=None, validation_set=None, test_set=None, predict_only=False):
 
         self.model = model
         self.optimizer = optimizer
@@ -71,28 +71,29 @@ class Pipeline:
         self.LOWEST_LOSS = 1
         self.test_set = test_set
 
-        traindataset = VesselDataset(logger, self.patch_size,
-                                     self.DATASET_FOLDER + 'train/', self.DATASET_FOLDER + 'train_label/',
-                                     stride_depth=self.stride_depth, stride_length=self.stride_length,
-                                     stride_width=self.stride_width, Size=self.samples_per_epoch,
-                                     crossvalidation_set=training_set)
-        validationdataset = validation_VesselDataset(logger, self.patch_size, self.DATASET_FOLDER + 'validation/',
-                                                     self.DATASET_FOLDER + 'validation_label/',
-                                                     stride_depth=self.stride_depth, stride_length=self.stride_length,
-                                                     stride_width=self.stride_width, Size=self.samples_per_epoch,
-                                                     crossvalidation_set=validation_set)
+        if not predict_only:
+            traindataset = VesselDataset(logger, self.patch_size,
+                                        self.DATASET_FOLDER + 'train/', self.DATASET_FOLDER + 'train_label/',
+                                        stride_depth=self.stride_depth, stride_length=self.stride_length,
+                                        stride_width=self.stride_width, Size=self.samples_per_epoch,
+                                        crossvalidation_set=training_set)
+            validationdataset = validation_VesselDataset(logger, self.patch_size, self.DATASET_FOLDER + 'validation/',
+                                                        self.DATASET_FOLDER + 'validation_label/',
+                                                        stride_depth=self.stride_depth, stride_length=self.stride_length,
+                                                        stride_width=self.stride_width, Size=self.samples_per_epoch,
+                                                        crossvalidation_set=validation_set)
 
-        self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                        num_workers=8)
-        self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=True,
-                                                           num_workers=8)
+            self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
+                                                            num_workers=8)
+            self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=True,
+                                                            num_workers=8)
 
-        self.elastic = RandomElasticDeformation(
-            num_control_points=5,
-            max_displacement=0.02,
-            locked_borders=2
-        )
-        self.elastic.cuda()
+            self.elastic = RandomElasticDeformation(
+                num_control_points=5,
+                max_displacement=0.02,
+                locked_borders=2
+            )
+            self.elastic.cuda()
 
     def train(self):
         self.logger.debug("Training...")
@@ -404,15 +405,13 @@ class Pipeline:
         given_label = bool(label_path)
 
         image_file = nibabel.load(image_path)
+        image_name = os.path.basename(image_path).split('.')[0]
 
         if given_label:
             groudtruth_file = nibabel.load(label_path)
 
         header_shape = image_file.header.get_data_shape()
         n_depth, n_length, n_width = header_shape[2], header_shape[0], header_shape[1]  # gives depth which is no. of slices
-
-        image_output = torch.zeros([n_depth, n_length, n_width])
-        image_output.cuda()
 
         self.logger.debug('Predicting...')
 
@@ -421,13 +420,10 @@ class Pipeline:
             n_depth, n_length, n_width = header_shape[2], header_shape[0], header_shape[1]  # gives depth which is no. of slices
 
             image_output = torch.zeros([n_depth, n_length, n_width])
-            image_output.cuda()
 
             flag_holder = torch.zeros([n_depth, n_length, n_width])
-            flag_holder.cuda()
 
             all_ones_patch = torch.ones([self.patch_size, self.patch_size, self.patch_size])
-            all_ones_patch.cuda()
 
             depth_i = 0
             for depth_index in range(1 + int(
@@ -439,14 +435,14 @@ class Pipeline:
                 for length_index in range(1 + int((n_length - self.patch_size) / self.stride_length)):
                     width_i = 0
                     for width_index in range(1 + int((n_width - self.patch_size) / self.stride_width)):
-                        batch, label = self.get_patch(image_file, False, self.patch_size, depth_i, length_i,
+                        batch = self.get_patch(image_file, False, self.patch_size, depth_i, length_i,
                                                       width_i)
                         batch = batch[None, None, :].cuda()
 
-                        output = torch.empty()
-                        for output1 in self.model(batch)(batch):
-                            output = torch.sigmoid(output1)
-                            break  # We need only the output from last level
+                        output = self.model(batch)
+                        if type(output) is tuple or type(output) is list:
+                            output = output[0]
+                        output = torch.sigmoid(output).detach().cpu()
 
                         if (torch.sum(flag_holder[depth_i:depth_i + self.patch_size, length_i:length_i + self.patch_size,
                                       width_i:width_i + self.patch_size]) == 0):  # fresh start
@@ -467,10 +463,13 @@ class Pipeline:
                                                                                     depth_i:depth_i + self.patch_size,
                                                                                     length_i:length_i + self.patch_size,
                                                                                     width_i:width_i + self.patch_size]
+                            #break #todo remove
+                            
 
                         width_i += self.stride_width
                     length_i += self.stride_length
                 depth_i += self.stride_depth
+                # break #todo remove
 
             del flag_holder  # no need of this file after this point, saves memory
 
@@ -481,12 +480,11 @@ class Pipeline:
                 targetPatch = torch.from_numpy(target_slices)
                 targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch),
                                       targetPatch)  # convert all 2's to 0's (2 means background, so make it 0)
-                targetPatch.cuda()
 
             print("image_output shape:" + str(image_output.shape))
 
             trans = transforms.ToTensor()
-            outputpatch = torch.Tensor();
+            outputpatch = torch.Tensor()
             for i in range(image_output.shape[0]):
                 try:
                     # direct_outputpatch = torch.cat([direct_outputpatch, trans(diff_image)], dim=0)
@@ -497,13 +495,13 @@ class Pipeline:
                 except Exception as error:
                     self.logger.exception(error)
                     # writer.close()
-            convert_and_save_tif(outputpatch, output_path, filename=self.MODEL_NAME + '_actual.tif', isColored=False)
+            convert_and_save_tif(outputpatch, output_path + "/" + model_name + "/", filename=image_name + '_actual.tif', isColored=False)
 
             del outputpatch
 
             if given_label:
 
-                outputpatch = torch.Tensor();
+                outputpatch = torch.Tensor()
                 # Get colored output
                 for i in range(image_output.shape[0]):
                     try:
@@ -517,4 +515,4 @@ class Pipeline:
                     except Exception as error:
                         self.logger.exception(error)
                         # writer.close()
-                convert_and_save_tif(outputpatch, output_path, filename=model_name + '_color.tif')
+                convert_and_save_tif(outputpatch, output_path + "/" + model_name + "/", filename=image_name + '_color.tif')
