@@ -63,6 +63,9 @@ if __name__ == '__main__':
     parser.add_argument('-load_path',
                         default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint/ ")
+    parser.add_argument('-load_best',
+                        default=False,
+                        help="Specifiy whether to load the best checkpoiont or the last")
     parser.add_argument('-deform',
                         default=False,
                         help="To use deformation for training")
@@ -135,40 +138,30 @@ if __name__ == '__main__':
             model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     else:
         if args.apex:
-            model, optimizer, amp = load_model_with_amp(model, LOAD_PATH)
+            model, optimizer, amp = load_model_with_amp(model, LOAD_PATH, batch_index="best" if args.load_best else "last")
         else:
-            model, optimizer = load_model(model, LOAD_PATH)
+            model, optimizer = load_model(model, LOAD_PATH, batch_index="best" if args.load_best else "last")
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
+    
+    pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex, num_epochs=args.num_epochs,
+                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, deform=args.deform,
+                        writer_training=writer_training, writer_validating=writer_validating,
+                        stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width, 
+                        predict_only=(not args.train) and (not args.test))
+
     try:
 
         if args.train:
-            pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex, num_epochs=args.num_epochs,
-                            dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, deform=args.deform,
-                            writer_training=writer_training, writer_validating=writer_validating,
-                            stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width)
             pipeline.train()
-
-            del model, pipeline
             torch.cuda.empty_cache()  # to avoid memory errors
 
         if args.test:
-            # Note: The below initialisation is just an example of how PIPELINE can be used for testing, pipeline.test can be even used directly after train.
-            pipeline = Pipeline(model=getModel(args.model), optimizer=optimizer, logger=logger, with_apex=args.apex,
-                            num_epochs=args.num_epochs, dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH,
-                            writer_training=writer_training, writer_validating=writer_validating,
-                            stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width)
-
             pipeline.test(test_logger=test_logger)
+            torch.cuda.empty_cache()  # to avoid memory errors
 
         if args.predict:
-            is_predict_only = (not args.train) and (not args.test)
-            pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex,
-                                num_epochs=args.num_epochs, dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH,
-                                writer_training=writer_training, writer_validating=writer_validating,
-                                stride_depth=args.stride_depth, stride_length=args.stride_length,
-                                stride_width=args.stride_width, predict_only=is_predict_only)
             pipeline.predict(MODEL_NAME, args.predictor_path, args.predictor_label_path, OUTPUT_PATH)
 
 

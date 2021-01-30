@@ -39,7 +39,7 @@ class Pipeline:
     def __init__(self, model, optimizer, logger, with_apex, num_epochs,
                  checkpoint_path, dir_path, writer_training, writer_validating, deform=False,
                  patch_size=64, stride_depth=64, stride_length=64, stride_width=64,
-                 samples_per_epoch=8000, batch_size=16,
+                 samples_per_epoch=8, batch_size=2, #TODO param batch_size, samples_per_epoch
                  training_set=None, validation_set=None, test_set=None, predict_only=False):
 
         self.model = model
@@ -73,23 +73,23 @@ class Pipeline:
 
         if not predict_only:
             traindataset = VesselDataset(logger, self.patch_size,
-                                        self.DATASET_FOLDER + 'train/', self.DATASET_FOLDER + 'train_label/',
+                                        self.DATASET_FOLDER + '/train/', self.DATASET_FOLDER + '/train_label/',
                                         stride_depth=self.stride_depth, stride_length=self.stride_length,
                                         stride_width=self.stride_width, Size=self.samples_per_epoch,
                                         crossvalidation_set=training_set)
-            validationdataset = validation_VesselDataset(logger, self.patch_size, self.DATASET_FOLDER + 'validation/',
-                                                        self.DATASET_FOLDER + 'validation_label/',
+            validationdataset = validation_VesselDataset(logger, self.patch_size, self.DATASET_FOLDER + '/validate/',
+                                                        self.DATASET_FOLDER + '/validate_label/',
                                                         stride_depth=self.stride_depth, stride_length=self.stride_length,
                                                         stride_width=self.stride_width, Size=self.samples_per_epoch,
                                                         crossvalidation_set=validation_set)
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=8)
-            self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=8)
+                                                            num_workers=0) #TODO workers as param
+            self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=True,#TODO Shuffle shouldn't be true
+                                                            num_workers=0)
 
             self.elastic = RandomElasticDeformation(
-                num_control_points=5,
+                num_control_points=5, #TODO as params
                 max_displacement=0.02,
                 locked_borders=2
             )
@@ -113,15 +113,15 @@ class Pipeline:
                 self.optimizer.zero_grad()
 
                 try:
-                    loss_ratios = [1, 0.66, 0.34]
+                    loss_ratios = [1, 0.66, 0.34]  #TODO param
 
-                    floss = torch.empty()
-                    output1 = torch.empty()
+                    floss = 0
+                    output1 = 0
                     level = 0
 
                     # --------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
-                    for output in self.model(local_batch):
+                    for output in self.model(local_batch): 
                         if level == 0:
                             output1 = output
                         if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
@@ -171,7 +171,7 @@ class Pipeline:
                 if self.with_apex:
                     with amp.scale_loss(floss, self.optimizer) as scaled_loss:
                         scaled_loss.backward()
-                    torch.nn.utils.clip_grad_value_(amp.master_params(self.optimizer), 1)
+                    torch.nn.utils.clip_grad_value_(amp.master_params(self.optimizer), 1) #TODO param for cip grad
                 else:
                     floss.backward()
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
@@ -196,12 +196,12 @@ class Pipeline:
                              "\n focalTverskyLoss:" + str(total_floss))
 
             torch.cuda.empty_cache()  # to avoid memory errors
-            self.validate(training_batch_index, self.model)
+            self.validate(training_batch_index, self.model, epoch)
             torch.cuda.empty_cache()  # to avoid memory errors
 
         return self.model
 
-    def validate(self, tainingIndex, currentModel):
+    def validate(self, tainingIndex, currentModel, epoch):
         """
         Method to validate
         :param tainingIndex: Epoch after which validation is performed(can be anything for test)
@@ -222,11 +222,11 @@ class Pipeline:
                 # Transfer to GPU
                 batch, labels = batch[:, None, :].cuda(), labels[:, None, :].cuda()
 
-                floss_iter = torch.empty()
-                output1 = torch.empty()
+                floss_iter = 0
+                output1 = 0
                 try:
                     # Forward propagation
-                    loss_ratios = [1, 0.66, 0.34]
+                    loss_ratios = [1, 0.66, 0.34] #TODO param
                     level = 0
 
                     # Forward propagation
@@ -257,7 +257,8 @@ class Pipeline:
         write_summary(writer, self.logger, tainingIndex, labels[0][0][6], output1[0][0][6], floss, dloss, 0, 0)
 
         save_model(self.checkpoint_path, {
-            'epoch': 'last',
+            'epoch_type': 'last',
+            'epoch': epoch,
             # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved below)
             'state_dict': self.model.state_dict(),
             'optimizer': self.optimizer.state_dict(),
@@ -270,26 +271,22 @@ class Pipeline:
                 'Best metric... @ epoch:' + str(tainingIndex) + ' Current Lowest loss:' + str(self.LOWEST_LOSS))
 
             save_model(self.checkpoint_path, {
-                'epoch': 'best',
+                'epoch_type': 'best',
+                'epoch': epoch,
                 'state_dict': self.model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'amp': amp.state_dict()}, best_metric=True)
 
-    def test(self, test_logger, batch_index='best'):
+    def test(self, test_logger):
         test_logger.debug('Testing...')
 
-        test_folder_path = self.DATASET_FOLDER + 'test/'
-        test_label_path = self.DATASET_FOLDER + 'test_label/'
-
-        if self.with_apex:
-            model, _, __ = load_model_with_amp(self.model, self.checkpoint_path, batch_index)
-        else:
-            model, _ = load_model(self.model, self.checkpoint_path, batch_index)
+        test_folder_path = self.DATASET_FOLDER + '/test/'
+        test_label_path = self.DATASET_FOLDER + '/test_label/'
 
         final_true_pos, final_false_neg, final_false_pos, final_intersection, final_union = 0, 0, 0, 0, 0
 
 
-        image_names = os.listdir(self.test_folder_path) if self.test_set == None else self.test_set
+        image_names = os.listdir(test_folder_path) if self.test_set == None else self.test_set
         for image_file_name in image_names:  # Parallelly read image file and groundtruth
             image_file = nibabel.load(
                 os.path.join(test_folder_path, image_file_name))  # shape (Length X Width X Depth X Channels)
@@ -333,14 +330,13 @@ class Pipeline:
                         # targetPatch = targetPatch / 255
 
                         target_patch = torch.where(torch.eq(target_patch, 2), 0 * torch.ones_like(target_patch),
-                                                  target_patch)  # convert all 2's to 0's (2 means background, so make it 0)
+                                                  target_patch)  # convert all 2's to 0's (2 means background, so make it 0) #TODO only needed for Ilastik dataset
                         # targetPatch = targetPatch / 255.0
 
                         batch, label = patch, target_patch
                         batch, label = batch[None, None, :].cuda(), label[None, None, :].cuda()
 
-                        output = torch.empty()
-                        for output1 in model(batch):
+                        for output1 in self.model(batch):
                             output = torch.sigmoid(output1)
                             break  # We need only the output from last level
 

@@ -55,11 +55,11 @@ def save_model(CHECKPOINT_PATH, state, best_metric = False,filename='checkpoint'
     print('Saving model...')
     if not os.path.exists(CHECKPOINT_PATH):
         os.mkdir(CHECKPOINT_PATH)
-        if best_metric:
-            if not os.path.exists(CHECKPOINT_PATH + 'best_metric/'):
-                CHECKPOINT_PATH = CHECKPOINT_PATH + 'best_metric/'
-                os.mkdir(CHECKPOINT_PATH)
-    torch.save(state, CHECKPOINT_PATH + filename + str(state['epoch']) + '.pth')
+        # if best_metric: #TODO check if its needed
+        #     if not os.path.exists(CHECKPOINT_PATH + 'best_metric/'):
+        #         CHECKPOINT_PATH = CHECKPOINT_PATH + 'best_metric/'
+        #         os.mkdir(CHECKPOINT_PATH)
+    torch.save(state, CHECKPOINT_PATH + filename + str(state['epoch_type']) + '.pth')
 
 
 def load_model(model, CHECKPOINT_PATH, batch_index='best', learning_rate = 0.01, filename='checkpoint'):
