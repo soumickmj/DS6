@@ -127,3 +127,17 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.vscode/settings.json
+1.py
+1x.py
+2.py
+2x.py
+3.py
+4.py
+c.py
+calc_res.py
+florian_compute_test.py
+main_executor_mick.py
+newlabels.py
+pscalc.py
+x.py

@@ -33,6 +33,17 @@ torch.manual_seed(2020)
 np.random.seed(2020)
 seed(2020)
 
+def _check_label_filename(label_dir_path, imageFileName):
+    labelfile = os.path.join(label_dir_path, imageFileName)
+    if os.path.isfile(labelfile):
+        return labelfile
+    else:
+        if ".gz" in labelfile:
+            labelfile = labelfile.replace(".gz", "")
+        else:
+            labelfile = labelfile + ".gz"
+        return labelfile 
+
 class VesselDataset(Dataset):
     """
     VesselDataset - Custom dataset used to get images and labels
@@ -86,7 +97,7 @@ class VesselDataset(Dataset):
                         # print("width")
                         # print(width_i)
                         dataDict[self.IMAGE_FILE_NAME].append(os.path.join(dir_path, imageFileName))
-                        dataDict[self.LABEL_FILE_NAME].append(os.path.join(label_dir_path, imageFileName))
+                        dataDict[self.LABEL_FILE_NAME].append(_check_label_filename(label_dir_path, imageFileName))
                         dataDict[self.STARTINDEX_DEPTH].append(depth_i)
                         dataDict[self.STARTINDEX_LENGTH].append(length_i)
                         dataDict[self.STARTINDEX_WIDTH].append(width_i)
@@ -95,7 +106,7 @@ class VesselDataset(Dataset):
                 depth_i += stride_depth
             
         self.data = pd.DataFrame.from_dict(dataDict)
-        print(len(self.data))
+        print(len(self.data))               
 
     def __len__(self):
         return self.size
@@ -119,16 +130,18 @@ class VesselDataset(Dataset):
         startIndex_length = self.data.iloc[index, 3]
         startIndex_width = self.data.iloc[index, 4]
 
-        voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        # voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size].squeeze()
         slices = np.moveaxis(np.array(voxel),-1, 0).astype(np.float32) #get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW)
         patch =  torch.from_numpy(slices)
         patch = patch/torch.max(patch)# normalisation
         
-        target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        # target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size].squeeze()
         target_slices = np.moveaxis(np.array(target_voxel), -1, 0).astype( np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW)
         targetPatch = torch.from_numpy(target_slices)
         # targetPatch = targetPatch/255.0
-        targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch), targetPatch)#convert all 2's to 0's (2 means background, so make it 0)
+        # targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch), targetPatch) #Ilastik Fix: convert all 2's to 0's (2 means background, so make it 0). Soumick's Advice: Don't do it here. Pre-process before supplying
 
         #Checking if the entire input voxel or the segmentation mask is black
         while (torch.sum(patch)==0 or torch.sum(targetPatch)==0 ):
@@ -140,18 +153,18 @@ class VesselDataset(Dataset):
             startIndex_length = self.data.iloc[index, 3]
             startIndex_width = self.data.iloc[index, 4]
     
-            voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+            voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size].squeeze()
             slices = np.moveaxis(np.array(voxel),-1, 0).astype(np.float32) #get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW)
             patch =  torch.from_numpy(slices)
             patch = patch/torch.max(patch)# normalisation
 
         #no need of padding with voxel size is 64x64x64
 
-            target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+            target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size].squeeze()
             target_slices = np.moveaxis(np.array(target_voxel), -1, 0).astype( np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW)
             targetPatch = torch.from_numpy(target_slices)
             # targetPatch = targetPatch/255.0
-            targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch), targetPatch)#convert all 2's to 0's (2 means background, so make it 0)
+            # targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch), targetPatch)#convert all 2's to 0's (2 means background, so make it 0)
 
         return patch, targetPatch
 
@@ -210,7 +223,7 @@ class validation_VesselDataset(Dataset):
                         # print("width")
                         # print(width_i)
                         dataDict[self.IMAGE_FILE_NAME].append(os.path.join(dir_path, imageFileName))
-                        dataDict[self.LABEL_FILE_NAME].append(os.path.join(label_dir_path, imageFileName))
+                        dataDict[self.LABEL_FILE_NAME].append(_check_label_filename(label_dir_path, imageFileName))
                         dataDict[self.STARTINDEX_DEPTH].append(depth_i)
                         dataDict[self.STARTINDEX_LENGTH].append(length_i)
                         dataDict[self.STARTINDEX_WIDTH].append(width_i)
@@ -242,16 +255,18 @@ class validation_VesselDataset(Dataset):
         startIndex_length = self.data.iloc[idx, 3]
         startIndex_width = self.data.iloc[idx, 4]
 
-        voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        # voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        voxel = images.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size].squeeze()
         slices = np.moveaxis(np.array(voxel),-1, 0).astype(np.float32) #get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW)
         patch =  torch.from_numpy(slices)
         patch = patch/torch.max(patch)# normalisation
         
-        target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        # target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size,0]
+        target_voxel = groundTruthImages.dataobj[startIndex_length:startIndex_length+self.patch_size, startIndex_width:startIndex_width+self.patch_size, startIndex_depth:startIndex_depth+self.patch_size].squeeze()
         target_slices = np.moveaxis(np.array(target_voxel), -1, 0).astype( np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW)
         targetPatch = torch.from_numpy(target_slices)
         # targetPatch = targetPatch/255.0
-        targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch), targetPatch)#convert all 2's to 0's (2 means background, so make it 0)
+        # targetPatch = torch.where(torch.eq(targetPatch, 2), 0 * torch.ones_like(targetPatch), targetPatch)#convert all 2's to 0's (2 means background, so make it 0)
 
         return patch, targetPatch
 
