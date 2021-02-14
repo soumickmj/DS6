@@ -104,7 +104,7 @@ class U_Net_DeepSup(nn.Module):
     def __init__(self, in_ch=1, out_ch=1):
         super(U_Net_DeepSup, self).__init__()
 
-        n1 = 64 #TODO: original paper starts with 64
+        n1 = 64 #TODO: make params
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]  # 64,128,256,512,1024
 
         self.Maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -220,7 +220,7 @@ class U_Net_DeepSup_level4(nn.Module):
     def __init__(self, in_ch=1, out_ch=1):
         super(U_Net_DeepSup_level4, self).__init__()
 
-        n1 = 64 #TODO: original paper starts with 64
+        n1 = 64 #TODO: make params
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]  # 64,128,256,512,1024
 
         self.Maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)
@@ -338,7 +338,7 @@ class U_Net_DeepSup_level4_wta(nn.Module):
     def __init__(self, in_ch=1, out_ch=1):
         super(U_Net_DeepSup_level4_wta, self).__init__()
 
-        n1 = 64  # TODO: original paper starts with 64
+        n1 = 64  # TODO: make params
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]  # 64,128,256,512,1024
 
         self.Maxpool1 = nn.MaxPool3d(kernel_size=2, stride=2)

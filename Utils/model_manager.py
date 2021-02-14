@@ -19,12 +19,13 @@ __status__ = "Production"
 MODEL_UNET = 1
 MODEL_UNET_DEEPSUP = 2
 MODEL_ATTENTION_UNET = 3
+MODEL_PROBABILISTIC_UNET = 4
 
-def getModel(model_no):
+def getModel(model_no): #Send model params from outside
     defaultModel = U_Net() #Default
     model_list = {
         1: U_Net(),
-        2: U_Net_DeepSup(),
+        2: U_Net_DeepSup(), 
         3: AttU_Net()
     }
     return model_list.get(model_no, defaultModel)

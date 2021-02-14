@@ -5,6 +5,9 @@
 
 import argparse
 
+import numpy as np
+import random
+
 from Utils.logger import Logger
 from Utils.model_manager import getModel
 from Utils.vessel_utils import load_model_with_amp, load_model
@@ -23,6 +26,12 @@ __version__ = "1.0.0"
 __maintainer__ = "Soumick Chatterjee"
 __email__ = "soumick.chatterjee@ovgu.de"
 __status__ = "Production"
+
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.manual_seed(2020)
+np.random.seed(2020)
+random.seed(2020)
 
 if __name__ == '__main__':
 
@@ -48,7 +57,7 @@ if __name__ == '__main__':
                         default=True,
                         help="To train the model")
     parser.add_argument('-test',
-                        default=True,
+                        default=False,
                         help="To test the model")
     parser.add_argument('-predict',
                         default=False,
@@ -145,11 +154,15 @@ if __name__ == '__main__':
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
     
-    pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex, num_epochs=args.num_epochs,
-                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, deform=args.deform,
-                        writer_training=writer_training, writer_validating=writer_validating,
-                        stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width, 
-                        predict_only=(not args.train) and (not args.test))
+    # pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex, num_epochs=args.num_epochs,
+    #                     dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, deform=args.deform,
+    #                     writer_training=writer_training, writer_validating=writer_validating,
+    #                     stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width, 
+    #                     predict_only=(not args.train) and (not args.test))
+
+    pipeline = Pipeline(cmd_args=args, model=model, optimizer=optimizer, logger=logger,
+                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, 
+                        writer_training=writer_training, writer_validating=writer_validating)
 
     try:
 

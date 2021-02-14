@@ -48,7 +48,7 @@ def warp_image(image, displacement, multi=False):
     image_size = image.size() #[B, D, H, W]
     batch_size  = image_size[0]
     if multi:
-        image_size = image_size[1:]#[D, H, W]
+        image_size = image_size[2:]#[D, H, W]
 
     grid = compute_grid(image_size, dtype=image.dtype, device=image.device)
     grid = displacement + grid
@@ -56,7 +56,7 @@ def warp_image(image, displacement, multi=False):
 
     # warp image
     if multi:
-        warped_image = F.grid_sample(image.unsqueeze(1), grid)  #[B, C, D, H, W], unsqueeze to give channel dimension
+        warped_image = F.grid_sample(image, grid)  #[B, C, D, H, W]
     else:
         warped_image = F.grid_sample(image.unsqueeze(0).unsqueeze(0), grid) #[B, C, D, H, W], unsqueeze to give batch and channel dimension
 
@@ -206,7 +206,7 @@ class RandomElasticDeformation(nn.Module):
         Images: shape of [N,D,H,W] or [N,H,W]
     """
     def forward(self, images):
-        bspline_transform = ParameterizedBsplineTransformation(images[0].size(),
+        bspline_transform = ParameterizedBsplineTransformation(images.size()[2:], #ignore batch and channel dim
                                                                 sigma=self.num_control_points,
                                                                 rnd_grid_params=self.bspline_params,
                                                                 diffeomorphic=True,

@@ -31,7 +31,7 @@ __maintainer__ = "Soumick Chatterjee"
 __email__ = "soumick.chatterjee@ovgu.de"
 __status__ = "Production"
 
-def write_summary(writer, logger, index, original, reconstructed, focalTverskyLoss, diceLoss, diceScore, iou):
+def write_summary(writer, logger, index, original=None, reconstructed=None, focalTverskyLoss=0, diceLoss=0, diceScore=0, iou=0):
     """
     Method to write summary to the tensorboard.
     index: global_index for the visualisation
@@ -44,21 +44,18 @@ def write_summary(writer, logger, index, original, reconstructed, focalTverskyLo
     writer.add_scalar('DiceScore', diceScore, index)
     writer.add_scalar('IOU', iou, index)
 
-    writer.add_image('original', original.cpu().data.numpy()[None,:],index)
-    writer.add_image('reconstructed', reconstructed.cpu().data.numpy()[None,:], index)
-    writer.add_image('diff', np.moveaxis(create_diff_mask(reconstructed,original,logger), -1, 0), index) #create_diff_mask is of the format HXWXC, but CXHXW is needed
+    if original is not None and reconstructed is not None:
+        writer.add_image('original', original.cpu().data.numpy()[None,:],index)
+        writer.add_image('reconstructed', reconstructed.cpu().data.numpy()[None,:], index)
+        writer.add_image('diff', np.moveaxis(create_diff_mask(reconstructed,original,logger), -1, 0), index) #create_diff_mask is of the format HXWXC, but CXHXW is needed
 
-def save_model(CHECKPOINT_PATH, state, best_metric = False,filename='checkpoint'):
+def save_model(CHECKPOINT_PATH, state, filename='checkpoint'):
     """
     Method to save model
     """
     print('Saving model...')
     if not os.path.exists(CHECKPOINT_PATH):
         os.mkdir(CHECKPOINT_PATH)
-        # if best_metric: #TODO check if its needed
-        #     if not os.path.exists(CHECKPOINT_PATH + 'best_metric/'):
-        #         CHECKPOINT_PATH = CHECKPOINT_PATH + 'best_metric/'
-        #         os.mkdir(CHECKPOINT_PATH)
     torch.save(state, CHECKPOINT_PATH + filename + str(state['epoch_type']) + '.pth')
 
 
@@ -82,10 +79,7 @@ def load_model_with_amp(model, CHECKPOINT_PATH, batch_index='best', learning_rat
     """
     print('Loading model...')
     model.cuda()
-    try: #TODO dirty fix for now
-        checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
-    except:
-        checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '50.pth')
+    checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
     model.load_state_dict(checkpoint['state_dict'])
