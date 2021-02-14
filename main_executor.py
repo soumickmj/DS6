@@ -41,7 +41,8 @@ if __name__ == '__main__':
                         default=1,
                         help="1{U-Net}; \n"
                              "2{U-Net_Deepsup}; \n"
-                             "3{Attention-U-Net};")
+                             "3{Attention-U-Net}; \n"
+                             "4{Probabilistic-U-Net};")
     parser.add_argument("-model_name",
                         default="Model_v1",
                         help="Name of the model")
