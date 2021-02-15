@@ -4,19 +4,16 @@
 """
 
 import argparse
-
-import numpy as np
 import random
 
-from Utils.logger import Logger
-from Utils.model_manager import getModel
-from Utils.vessel_utils import load_model_with_amp, load_model
-from pipeline import Pipeline
+import numpy as np
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 
-import apex
-from apex import amp
+from pipeline import Pipeline
+from Utils.logger import Logger
+from Utils.model_manager import getModel
+from Utils.vessel_utils import load_model, load_model_with_amp
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -49,35 +46,39 @@ if __name__ == '__main__':
     parser.add_argument("-dataset_path",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
-                             "Example: /home/dataset/")
+                             "Example: /home/dataset")
     parser.add_argument("-output_path",
                         help="Folder path to store output "
-                             "Example: /home/output/")
+                             "Example: /home/output")
 
     parser.add_argument('-train',
                         default=True,
                         help="To train the model")
     parser.add_argument('-test',
-                        default=False,
+                        default=True,
                         help="To test the model")
     parser.add_argument('-predict',
                         default=False,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
     parser.add_argument('-predictor_path',
                         default="",
-                        help="Path to the input image to predict an output, ex:/home/test/ww25.nii ")
+                        help="Path to the input image to predict an output, ex:/home/test/vol.nii ")
     parser.add_argument('-predictor_label_path',
                         default="",
-                        help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
+                        help="Path to the label image to find the diff between label an output, ex:/home/test/vol_label.nii ")
 
     parser.add_argument('-load_path',
                         default="",
-                        help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint/ ")
+                        help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('-load_best',
-                        default=False,
-                        help="Specifiy whether to load the best checkpoiont or the last")
+                        default=True,
+                        help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
     parser.add_argument('-deform',
                         default=False,
+                        help="To use deformation for training")
+    parser.add_argument('-clip_grads',
+                        default=True,
+                        action="store_true",
                         help="To use deformation for training")
     parser.add_argument('-apex',
                         default=True,
@@ -141,29 +142,16 @@ if __name__ == '__main__':
     model = getModel(args.model)
     model.cuda()
 
-    # No loading
-    if not bool(LOAD_PATH):
-        optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
-        if args.apex:
-            model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
-    else:
-        if args.apex:
-            model, optimizer, amp = load_model_with_amp(model, LOAD_PATH, batch_index="best" if args.load_best else "last")
-        else:
-            model, optimizer = load_model(model, LOAD_PATH, batch_index="best" if args.load_best else "last")
-
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
-    
-    # pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex, num_epochs=args.num_epochs,
-    #                     dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, deform=args.deform,
-    #                     writer_training=writer_training, writer_validating=writer_validating,
-    #                     stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width, 
-    #                     predict_only=(not args.train) and (not args.test))
 
-    pipeline = Pipeline(cmd_args=args, model=model, optimizer=optimizer, logger=logger,
+    pipeline = Pipeline(cmd_args=args, model=model, logger=logger,
                         dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, 
                         writer_training=writer_training, writer_validating=writer_validating)
+
+    # loading existing checkpoint if supplied
+    if bool(LOAD_PATH):
+        pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
 
     try:
 
@@ -172,11 +160,13 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()  # to avoid memory errors
 
         if args.test:
+            if args.load_best:
+                pipeline.load(load_best=True)
             pipeline.test(test_logger=test_logger)
             torch.cuda.empty_cache()  # to avoid memory errors
 
         if args.predict:
-            pipeline.predict(MODEL_NAME, args.predictor_path, args.predictor_label_path, OUTPUT_PATH)
+            pipeline.predict(args.predictor_path, args.predictor_label_path, predict_logger=test_logger)
 
 
     except Exception as error:

@@ -1,8 +1,9 @@
+import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
-import numpy as np
 from Models.prob_unet.utils import init_weights
+from torch.autograd import Variable
+
 
 class DownConvBlock(nn.Module):
     """

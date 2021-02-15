@@ -5,16 +5,16 @@
 
 import argparse
 
-from Utils.logger import Logger
-from Utils.model_manager import getModel
-from Utils.vessel_utils import load_model_with_amp, load_model
-from crossvalidation import FoldManager
-from pipeline import Pipeline
+import apex
 import torch.utils.data
+from apex import amp
 from torch.utils.tensorboard import SummaryWriter
 
-import apex
-from apex import amp
+from crossvalidation import FoldManager
+from pipeline import Pipeline
+from Utils.logger import Logger
+from Utils.model_manager import getModel
+from Utils.vessel_utils import load_model, load_model_with_amp
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"

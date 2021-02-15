@@ -1,8 +1,9 @@
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
+from torch.autograd import Variable
+
 
 def truncated_normal_(tensor, mean=0, std=1):
     size = tensor.shape

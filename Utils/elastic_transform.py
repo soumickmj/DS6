@@ -7,14 +7,14 @@ Purpose :
 
 
 from numbers import Number
-from typing import Tuple, Optional, Union
+from typing import Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torch as th
 import torch.nn as nn
-from torch.nn.parameter import Parameter
 import torch.nn.functional as F
-import numpy as np
+from torch.nn.parameter import Parameter
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -26,15 +26,16 @@ __email__ = "soumick.chatterjee@ovgu.de"
 __status__ = "Production"
 
 from torchio.utils import to_tuple
+
 try:
     from torchio import RandomElasticDeformation
 except:
     from torchio.transforms.augmentation import RandomElasticDeformation
 
-from airlab.utils import kernelFunction as utils
 from airlab import utils as tu
-from airlab.transformation.utils import compute_grid
 from airlab.transformation.pairwise import _KernelTransformation
+from airlab.transformation.utils import compute_grid
+from airlab.utils import kernelFunction as utils
 
 SPLINE_ORDER = 3
 

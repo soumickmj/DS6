@@ -8,15 +8,16 @@ Purpose :
 
 
 import os
-from apex import amp
 
+import matplotlib.pyplot as plt
+import nibabel as nib
+import numpy as np
 import torch
 import torch.utils.data
 import torchvision.transforms as transforms
 from PIL import TiffImagePlugin
 from skimage.filters import threshold_otsu
-import numpy as np
-import matplotlib.pyplot as plt
+from torch.cuda.amp import GradScaler
 
 # import GPUtil as GPU
 # import psutil
@@ -59,51 +60,32 @@ def save_model(CHECKPOINT_PATH, state, filename='checkpoint'):
     torch.save(state, CHECKPOINT_PATH + filename + str(state['epoch_type']) + '.pth')
 
 
-def load_model(model, CHECKPOINT_PATH, batch_index='best', learning_rate = 0.01, filename='checkpoint'):
+def load_model(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint'):
     """
     Method to load model, make sure to set the model to eval, use optimiser if want to continue training
     """
     print('Loading model...')
-    checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     model.eval()
     return model, optimizer
 
 
-def load_model_with_amp(model, CHECKPOINT_PATH, batch_index='best', learning_rate = 0.01, filename='checkpoint'):
+def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint'):
     """
     Method to load model, make sure to set the model to eval, use optimiser if want to continue training
     opt_level="O1"
     """
     print('Loading model...')
     model.cuda()
-    checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model, optimizer = amp.initialize(model, optimizer, opt_level="O1")
+    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
-    amp.load_state_dict(checkpoint['amp'])
+    scaler = GradScaler()
+    scaler.load_state_dict(checkpoint['amp'])
     model.eval()
-    return model, optimizer, amp
-
-
-def load_model_with_amp_v2(model, CHECKPOINT_PATH, batch_index='best', learning_rate = 0.01, filename='checkpoint'):
-    """
-    Method to load model, make sure to set the model to eval, use optimiser if want to continue training
-    opt_level="O2"
-    """
-    print('Loading model...')
-    model.cuda()
-    checkpoint = torch.load(CHECKPOINT_PATH + filename + str(batch_index) + '.pth')
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    model, optimizer = amp.initialize(model, optimizer, opt_level="O2")
-    model.load_state_dict(checkpoint['state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
-    amp.load_state_dict(checkpoint['amp'])
-    model.eval()
-    return model, optimizer, amp
+    return model, optimizer, scaler
 
 
 def convert_and_save_tif(image3D, output_path, filename='output.tif', isColored=True):
@@ -283,3 +265,4 @@ def show_diff(label, predicted, diff_image):
     ax[2].axis('off')
 
     plt.show()
+
