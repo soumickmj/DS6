@@ -5,6 +5,8 @@
 
 import argparse
 import random
+import os
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 
 import numpy as np
 import torch.utils.data
@@ -30,12 +32,14 @@ torch.manual_seed(2020)
 np.random.seed(2020)
 random.seed(2020)
 
+# torch.autograd.set_detect_anomaly(True)
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-model",
                         type=int,
-                        default=1,
+                        default=2,
                         help="1{U-Net}; \n"
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net}; \n"
@@ -44,12 +48,14 @@ if __name__ == '__main__':
                         default="Model_v1",
                         help="Name of the model")
     parser.add_argument("-dataset_path",
+                        default="/vol3/schatter/DS6/Dataset/OriginalVols/300",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
-                             "Example: /home/dataset")
+                             "Example: /home/dataset/")
     parser.add_argument("-output_path",
+                        default="/home/schatter/Soumick/Output/DS6/OriginalVols_FDPv0",
                         help="Folder path to store output "
-                             "Example: /home/output")
+                             "Example: /home/output/")
 
     parser.add_argument('-train',
                         default=True,
@@ -61,20 +67,22 @@ if __name__ == '__main__':
                         default=False,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
     parser.add_argument('-predictor_path',
-                        default="",
-                        help="Path to the input image to predict an output, ex:/home/test/vol.nii ")
+                        default="/vol3/schatter/DS6/Dataset/BiasFieldCorrected/300/test/vk04.nii",
+                        help="Path to the input image to predict an output, ex:/home/test/ww25.nii ")
     parser.add_argument('-predictor_label_path',
-                        default="",
-                        help="Path to the label image to find the diff between label an output, ex:/home/test/vol_label.nii ")
+                        default="/vol3/schatter/DS6/Dataset/BiasFieldCorrected/300/test_label/vk04.nii.gz",
+                        help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
     parser.add_argument('-load_path',
-                        default="",
+                        # default="/home/schatter/Soumick/Output/DS6/OrigVol_MaskedFDIPv0_UNetV2/checkpoint",
+                        default="/home/schatter/Soumick/Output/DS6/OriginalVols_FDPv0/UNetMSS_X2_Deform/checkpoint/",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('-load_best',
                         default=True,
                         help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
     parser.add_argument('-deform',
-                        default=False,
+                        default=True,
+                        action="store_true",
                         help="To use deformation for training")
     parser.add_argument('-clip_grads',
                         default=True,
@@ -86,7 +94,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-batch_size",
                         type=int,
-                        default=20,
+                        default=15,
                         help="Batch size for training")
     parser.add_argument("-num_epochs",
                         type=int,
@@ -103,15 +111,15 @@ if __name__ == '__main__':
     parser.add_argument("-stride_depth",
                         type=int,
                         default=16,
-                        help="Strides for dividing the input volume into patches in depth dimension")
+                        help="Strides for dividing the input volume into patches in depth dimension (To be used during validation and inference)")
     parser.add_argument("-stride_width",
                         type=int,
                         default=32,
-                        help="Strides for dividing the input volume into patches in width dimension")
+                        help="Strides for dividing the input volume into patches in width dimension (To be used during validation and inference)")
     parser.add_argument("-stride_length",
                         type=int,
                         default=32,
-                        help="Strides for dividing the input volume into patches in length dimension")
+                        help="Strides for dividing the input volume into patches in length dimension (To be used during validation and inference)")
     parser.add_argument("-samples_per_epoch",
                         type=int,
                         default=8000,
@@ -122,6 +130,9 @@ if __name__ == '__main__':
                         help="Number of worker threads")
 
     args = parser.parse_args()
+
+    if args.deform:
+        args.model_name += "_Deform"
 
     MODEL_NAME = args.model_name
     DATASET_FOLDER = args.dataset_path
@@ -153,23 +164,23 @@ if __name__ == '__main__':
     if bool(LOAD_PATH):
         pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
 
-    try:
+    # try:
 
-        if args.train:
-            pipeline.train()
-            torch.cuda.empty_cache()  # to avoid memory errors
+    if args.train:
+        pipeline.train()
+        torch.cuda.empty_cache()  # to avoid memory errors
 
-        if args.test:
-            if args.load_best:
-                pipeline.load(load_best=True)
-            pipeline.test(test_logger=test_logger)
-            torch.cuda.empty_cache()  # to avoid memory errors
+    if args.test:
+        if args.load_best:
+            pipeline.load(load_best=True)
+        pipeline.test(test_logger=test_logger)
+        torch.cuda.empty_cache()  # to avoid memory errors
 
-        if args.predict:
-            pipeline.predict(args.predictor_path, args.predictor_label_path, predict_logger=test_logger)
+    if args.predict:
+        pipeline.predict(args.predictor_path, args.predictor_label_path, predict_logger=test_logger)
 
 
-    except Exception as error:
-        logger.exception(error)
+    # except Exception as error:
+    #     logger.exception(error)
     writer_training.close()
     writer_validating.close()

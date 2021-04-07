@@ -41,3 +41,45 @@ def save_mask_prediction_example(mask, pred, iter):
 	plt.savefig('images/'+str(iter)+"_prediction.png")
 	plt.imshow(mask[0,:,:],cmap='Greys')
 	plt.savefig('images/'+str(iter)+"_mask.png")
+
+def ce_loss(labels, logits, n_classes, loss_mask=None, one_hot_labels=True):
+    """
+    Cross-entropy loss.
+    :param labels: 4D tensor
+    :param logits: 4D tensor
+    :param n_classes: integer for number of classes
+    :param loss_mask: binary 4D tensor, pixels to mask should be marked by 1s
+    :param data_format: string
+    :param one_hot_labels: bool, indicator for whether labels are to be expected in one-hot representation
+    :param name: string
+    :return: dict of (pixel-wise) mean and sum of cross-entropy loss
+    """
+    # permute class channels into last axis
+    labels = labels.permute([0,2,3,4,1]).to(torch.int64)
+    logits = logits.permute([0,2,3,4,1])
+
+    batch_size = float(labels.shape[0])
+
+    if n_classes==1 or not one_hot_labels:
+        flat_labels = labels.reshape([-1])
+    else:
+        _, flat_labels = labels.max(dim=1)
+    flat_logits = logits.reshape([-1, n_classes]) + 1e-11
+
+    # do not compute gradients wrt the labels
+    flat_labels.requires_grad = False
+
+    ce_per_pixel = torch.nn.functional.cross_entropy(flat_logits, flat_labels)
+
+    # optional element-wise masking with binary loss mask
+    if loss_mask is None:
+        ce_sum = torch.sum(ce_per_pixel) / batch_size
+        ce_mean = torch.mean(ce_per_pixel)
+    else:
+        loss_mask_flat = loss_mask.reshape([-1,]).float()
+        loss_mask_flat = (1. - loss_mask_flat)
+        ce_sum = torch.sum(loss_mask_flat * ce_per_pixel) / batch_size
+        n_valid_pixels = torch.sum(loss_mask_flat)
+        ce_mean = torch.sum(loss_mask_flat * ce_per_pixel) / n_valid_pixels
+
+    return {'sum': ce_sum, 'mean': ce_mean}

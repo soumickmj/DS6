@@ -148,3 +148,6 @@ main_executor_DS6.py
 pipeline_amp.py
 pipeline_DS6.py
 pipelinev2.py
+runner_gpu1.py
+runner_gpu2.py
+runner_gpu3.py

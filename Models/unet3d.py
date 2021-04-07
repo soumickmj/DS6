@@ -211,7 +211,18 @@ class U_Net_DeepSup(nn.Module):
 
         self.Conv = nn.Conv3d(filters[0], out_ch, kernel_size=1, stride=1, padding=0)
 
+        for submodule in self.modules():
+            submodule.register_forward_hook(self.nan_hook)
+
     # self.active = torch.nn.Sigmoid()
+
+    def nan_hook(self, module, inp, output):
+        for i, out in enumerate(output):
+            nan_mask = torch.isnan(out)
+            if nan_mask.any():
+                print("In", self.__class__.__name__)
+                print(module)
+                raise RuntimeError(f"Found NAN in output {i} at indices: ", nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
     def forward(self, x):
         # print("unet")

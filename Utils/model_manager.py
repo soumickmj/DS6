@@ -28,7 +28,7 @@ def getModel(model_no): #Send model params from outside
         1: U_Net(),
         2: U_Net_DeepSup(), 
         3: AttU_Net(),
-        # 4: ProbabilisticUnet(num_filters=[32,64,128,192])
-        4: ProbabilisticUnet(num_filters=[64,128,256,512,1024])
+        4: ProbabilisticUnet(num_filters=[32,64,128,192])
+        # 4: ProbabilisticUnet(num_filters=[64,128,256,512,1024])
     }
     return model_list.get(model_no, defaultModel)

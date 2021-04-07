@@ -32,6 +32,9 @@ __maintainer__ = "Soumick Chatterjee"
 __email__ = "soumick.chatterjee@ovgu.de"
 __status__ = "Production"
 
+def minmax(array):
+    return (array - array.min()) / (array.max() - array.min())
+
 def write_summary(writer, logger, index, original=None, reconstructed=None, focalTverskyLoss=0, diceLoss=0, diceScore=0, iou=0):
     """
     Method to write summary to the tensorboard.

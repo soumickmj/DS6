@@ -1,10 +1,11 @@
 import os
-import numpy as np
-import nibabel as nib
-from PIL import Image
-from PIL import TiffImagePlugin
-import pandas as pd
 from glob import glob
+
+import nibabel as nib
+import numpy as np
+import pandas as pd
+from PIL import Image, TiffImagePlugin
+
 
 def create_diff_mask_binary(predicted, label):
     """

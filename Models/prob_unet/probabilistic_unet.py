@@ -1,12 +1,14 @@
 #This code is based on: https://github.com/SimonKohl/probabilistic_unet
 
+from logging import log
 import torch.nn.functional as F
 from Models.prob_unet.unet import Unet
 from Models.prob_unet.unet_blocks import *
 from Models.prob_unet.utils import (init_weights,
                                     init_weights_orthogonal_normal,
-                                    l2_regularisation)
+                                    ce_loss)
 from torch.distributions import Independent, Normal, kl
+from torch.cuda.amp import autocast
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -79,6 +81,7 @@ class AxisAlignedConvGaussian(nn.Module):
         nn.init.kaiming_normal_(self.conv_layer.weight, mode='fan_in', nonlinearity='relu')
         nn.init.normal_(self.conv_layer.bias)
 
+    @autocast(enabled=False)
     def forward(self, input, segm=None):
 
         #If segmentation is not none, concatenate the mask to the channel axis of the input
@@ -111,6 +114,8 @@ class AxisAlignedConvGaussian(nn.Module):
         #This is a multivariate normal with diagonal covariance matrix sigma
         #https://github.com/pytorch/pytorch/pull/11178
         dist = Independent(Normal(loc=mu, scale=torch.exp(log_sigma)),1)
+        # cov = torch.stack([torch.diag(sigma) for sigma in torch.exp(log_sigma)])
+        # dist = torch.distributions.multivariate_normal.MultivariateNormal(mu.float(), cov.float())
         return dist
 
 class Fcomb(nn.Module):
@@ -195,7 +200,7 @@ class ProbabilisticUnet(nn.Module):
     no_cons_per_block: no convs per block in the (convolutional) encoder of prior and posterior
     """
 
-    def __init__(self, input_channels=1, num_classes=1, num_filters=[32,64,128,192], latent_dim=6, no_convs_fcomb=4, beta=10.0):
+    def __init__(self, input_channels=1, num_classes=1, num_filters=[32,64,128,192], latent_dim=6, no_convs_fcomb=4, beta=10.0, reg_alpha=1e-5, use_mean_recon_loss=True):
         super(ProbabilisticUnet, self).__init__()
         self.input_channels = input_channels
         self.num_classes = num_classes
@@ -205,9 +210,12 @@ class ProbabilisticUnet(nn.Module):
         self.no_convs_fcomb = no_convs_fcomb
         self.initializers = {'w':'he_normal', 'b':'normal'}
         self.beta = beta
+        self.reg_alpha = reg_alpha
         self.z_prior_sample = 0
 
-        self.criterion = nn.BCEWithLogitsLoss(size_average = False, reduce=False, reduction=None)
+        self.use_mean_recon_loss = use_mean_recon_loss
+
+        # self.criterion = nn.BCEWithLogitsLoss(size_average = False, reduce=False, reduction=None)
 
         self.unet = Unet(self.input_channels, self.num_classes, self.num_filters, self.initializers, apply_last_layer=False, padding=True).to(device)
         self.prior = AxisAlignedConvGaussian(self.input_channels, self.num_filters, self.no_convs_per_block, self.latent_dim,  self.initializers,).to(device)
@@ -281,8 +289,11 @@ class ProbabilisticUnet(nn.Module):
         #Here we use the posterior sample sampled above
         self.reconstruction = self.reconstruct(use_posterior_mean=reconstruct_posterior_mean, calculate_posterior=False, z_posterior=z_posterior)
         
-        reconstruction_loss = self.criterion(input=self.reconstruction, target=segm)
-        self.reconstruction_loss = torch.sum(reconstruction_loss)
-        self.mean_reconstruction_loss = torch.mean(reconstruction_loss)
+        reconstruction_loss = ce_loss(logits=self.reconstruction, labels=segm, n_classes=self.num_classes, loss_mask=None, one_hot_labels=False)
+        self.reconstruction_loss = reconstruction_loss['sum']
+        self.mean_reconstruction_loss = reconstruction_loss['mean']
 
-        return -(self.reconstruction_loss + self.beta * self.kl)
+        if self.use_mean_recon_loss:
+            return -(self.mean_reconstruction_loss + self.beta * self.kl)
+        else:
+            return -(self.reconstruction_loss + self.beta * self.kl)

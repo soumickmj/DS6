@@ -32,6 +32,8 @@ try:
 except:
     from torchio.transforms.augmentation import RandomElasticDeformation
 
+from torch.cuda.amp import autocast
+
 from airlab import utils as tu
 from airlab.transformation.pairwise import _KernelTransformation
 from airlab.transformation.utils import compute_grid

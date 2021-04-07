@@ -68,7 +68,8 @@ class FocalTverskyLoss(nn.Module):
         false_pos = torch.sum((1 - y_true_pos) * y_pred_pos)
         pt_1 = (true_pos + self.smooth) / (
                 true_pos + self.alpha * false_neg + (1 - self.alpha) * false_pos + self.smooth)
-        return pow((1 - pt_1), self.gamma)
+        # return pow((1 - pt_1), self.gamma)
+        return pow(abs(1 - pt_1), self.gamma)
 
 
 class FocalTverskyLoss_detailed(nn.Module):

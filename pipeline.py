@@ -21,7 +21,6 @@ from tqdm import tqdm
 
 from Evaluation.evaluate import (IOU, Dice, FocalTverskyLoss, getLosses,
                                  getMetric)
-from Utils.customdataset import VesselDataset, validation_VesselDataset
 from Utils.elastic_transform import RandomElasticDeformation, warp_image
 from Utils.result_analyser import *
 from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
@@ -75,7 +74,7 @@ class Pipeline:
         self.focalTverskyLoss = FocalTverskyLoss()
         self.iou = IOU()
 
-        self.LOWEST_LOSS = 1
+        self.LOWEST_LOSS = float('inf')
         self.test_set = test_set
 
         if self.with_apex:
@@ -177,99 +176,140 @@ class Pipeline:
                 # Clear gradients
                 self.optimizer.zero_grad()
 
-                try:
-                    with autocast(enabled=self.with_apex):
-                        loss_ratios = [1, 0.66, 0.34]  #TODO param
+                for b in local_batch:
+                    if b.max() == 0:
+                        print("batch has patch with all zeros")
+                if torch.isnan(local_batch).any():
+                    print("batch has patch with NaN")
+                if torch.isnan(local_labels).any():
+                    print("label has patch with NaN")
 
-                        floss = 0
-                        output1 = 0
-                        level = 0
+                # try:
+                with autocast(enabled=self.with_apex):
+                    loss_ratios = [1, 0.66, 0.34]  #TODO param
 
-                        # -------------------------------------------------------------------------------------------------
-                        # First Branch Supervised error
-                        if not self.isProb:
-                            for output in self.model(local_batch): 
-                                if level == 0:
-                                    output1 = output
-                                if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                    output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                    floss = 0
+                    output1 = 0
+                    level = 0
 
-                                output = torch.sigmoid(output)
-                                floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
-                                level += 1
+                    # -------------------------------------------------------------------------------------------------
+                    # First Branch Supervised error
+                    if not self.isProb:
+                        for output in self.model(local_batch): 
+                            if level == 0:
+                                output1 = output
+                            if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                            
+                            if torch.isnan(output).any():
+                                print("Output of level "+str(level)+" of the first branch is NaN")
+                            output = torch.sigmoid(output)
+                            floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
+                            level += 1
+                    else:
+                        self.model.forward(local_batch, local_labels, training=True)
+                        elbo = self.model.elbo(local_labels, analytic_kl=True)
+                        reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
+                        if self.with_apex:
+                            floss = [self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss, 
+                                    -(self.model.beta * self.model.kl), 
+                                    self.model.reg_alpha * reg_loss] 
                         else:
-                            self.model.forward(local_batch, local_labels, training=True)
-                            elbo = self.model.elbo(local_labels)
-                            reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
-                            floss = -elbo + 1e-5 * reg_loss
+                            floss = -elbo + self.model.reg_alpha * reg_loss
 
-                        # Elastic Deformations
-                        if self.deform:
-                            # Each batch must be randomly deformed
-                            elastic = RandomElasticDeformation(
-                                num_control_points=random.choice([5, 6, 7]),
-                                max_displacement=random.choice([0.01, 0.015, 0.02, 0.025, 0.03]),
-                                locked_borders=2
-                            )
-                            elastic.cuda()
+                    # Elastic Deformations
+                    if self.deform:
+                        # Each batch must be randomly deformed
+                        elastic = RandomElasticDeformation(
+                            num_control_points=random.choice([5, 6, 7]),
+                            max_displacement=random.choice([0.01, 0.015, 0.02, 0.025, 0.03]),
+                            locked_borders=2
+                        )
+                        elastic.cuda()
 
+                        with autocast(enabled=False):
+                            local_batch_xt, displacement, _ = elastic(local_batch)
+                            local_labels_xt = warp_image(local_labels, displacement, multi=True)
+                        floss2 = 0
 
-                            local_batch_xt, displacement, inv_displacement = elastic(local_batch.cuda())
-                            local_labels_xt = warp_image(local_labels.cuda(), displacement, multi=True)
-                            floss2 = 0
+                        if torch.isnan(local_batch_xt).any():
+                            print("local_batch_xt is NaN")
+                        if torch.isnan(local_labels_xt).any():
+                            print("local_labels_xt is NaN")
 
-                            level = 0
-                            # ------------------------------------------------------------------------------
-                            # Second Branch Supervised error
-                            for output in self.model(local_batch_xt):
-                                if level == 0:
-                                    output2 = output
-                                if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                    output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                        level = 0
+                        # ------------------------------------------------------------------------------
+                        # Second Branch Supervised error
+                        for output in self.model(local_batch_xt):
+                            if level == 0:
+                                output2 = output
+                            if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                            
+                            if torch.isnan(output).any():
+                                print("Output of level "+str(level)+" of the second branch is NaN")
 
-                                output = torch.sigmoid(output)
-                                floss2 += loss_ratios[level] * self.focalTverskyLoss(output, local_labels_xt)
-                                level += 1
+                            output = torch.sigmoid(output)
+                            floss2 += loss_ratios[level] * self.focalTverskyLoss(output, local_labels_xt)
+                            level += 1
 
-                            # -------------------------------------------------------------------------------------------
-                            # Consistency loss
-                            output1T = warp_image(output1, displacement, multi=True)
-                            floss_c = self.focalTverskyLoss(output2, output1T)
+                        # -------------------------------------------------------------------------------------------
+                        # Consistency loss
+                        with autocast(enabled=False):
+                            output1T = warp_image(output1.float(), displacement, multi=True)
+                            
+                        if torch.isnan(output1T).any():
+                            print("Output of consist warp is NaN")
+                        floss_c = self.focalTverskyLoss(torch.sigmoid(output2), output1T)
 
-                            # -------------------------------------------------------------------------------------------
-                            # Total loss
-                            floss = floss + floss2 + floss_c
+                        # -------------------------------------------------------------------------------------------
+                        # Total loss
+                        floss = floss + floss2 + floss_c
 
-                except Exception as error:
-                    self.logger.exception(error)
-                    sys.exit()
+                # except Exception as error:
+                #     self.logger.exception(error)
+                #     sys.exit()
 
                 self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + "Training..." +
                                  "\n focalTverskyLoss:" + str(floss))
 
                 # Calculating gradients
                 if self.with_apex:
-                    self.scaler.scale(floss).backward()
+                    if type(floss) is list:
+                        for i in range(len(floss)):
+                            if i+1 == len(floss): #final loss
+                                self.scaler.scale(floss[i]).backward()
+                            else:
+                                self.scaler.scale(floss[i]).backward(retain_graph=True)
+                        floss = torch.sum(torch.stack(floss))
+                    else:
+                        self.scaler.scale(floss).backward()
 
                     if self.clip_grads:
                         self.scaler.unscale_(self.optimizer)
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1) 
+                        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1) 
+                        torch.nn.utils.clip_grad_value_(self.model.parameters(), 1) 
                     
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 else:
                     floss.backward()
                     if self.clip_grads:
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                        torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
                     self.optimizer.step()
 
-                if training_batch_index % 50 == 0:  # Save best metric evaluation weights
+                if training_batch_index % 50 == 0:  # Save best metric evaluation weights                        
                     write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item())
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
                 total_floss += floss.detach().item()
+
+                if self.deform:
+                    del elastic
+                    torch.cuda.empty_cache()
 
             # Calculate the average loss per batch in one epoch
             total_floss /= (batch_index + 1.0)
@@ -339,15 +379,16 @@ class Pipeline:
                                 level += 1
                         else:
                             self.model.forward(local_batch, training=False)
-                            output1 = self.model.sample(testing=True)
-                            elbo = self.model.elbo(local_labels)
-                            reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
-                            floss_iter = -elbo + 1e-5 * reg_loss
+                            output1 = torch.sigmoid(self.model.sample(testing=True))
+                            floss_iter = self.focalTverskyLoss(output1, local_labels)
+                            # elbo = self.model.elbo(local_labels)
+                            # reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
+                            # floss_iter = -elbo + 1e-5 * reg_loss
                 except Exception as error:
                     self.logger.exception(error)
 
                 floss += floss_iter
-                dl, ds = self.dice(output1, local_labels)
+                dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 dloss += dl.detach().item()
 
         # Average the losses
