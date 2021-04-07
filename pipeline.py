@@ -176,14 +176,6 @@ class Pipeline:
                 # Clear gradients
                 self.optimizer.zero_grad()
 
-                for b in local_batch:
-                    if b.max() == 0:
-                        print("batch has patch with all zeros")
-                if torch.isnan(local_batch).any():
-                    print("batch has patch with NaN")
-                if torch.isnan(local_labels).any():
-                    print("label has patch with NaN")
-
                 # try:
                 with autocast(enabled=self.with_apex):
                     loss_ratios = [1, 0.66, 0.34]  #TODO param
@@ -200,9 +192,6 @@ class Pipeline:
                                 output1 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                 output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
-                            
-                            if torch.isnan(output).any():
-                                print("Output of level "+str(level)+" of the first branch is NaN")
                             output = torch.sigmoid(output)
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             level += 1
@@ -232,11 +221,6 @@ class Pipeline:
                             local_labels_xt = warp_image(local_labels, displacement, multi=True)
                         floss2 = 0
 
-                        if torch.isnan(local_batch_xt).any():
-                            print("local_batch_xt is NaN")
-                        if torch.isnan(local_labels_xt).any():
-                            print("local_labels_xt is NaN")
-
                         level = 0
                         # ------------------------------------------------------------------------------
                         # Second Branch Supervised error
@@ -245,9 +229,6 @@ class Pipeline:
                                 output2 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                 output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
-                            
-                            if torch.isnan(output).any():
-                                print("Output of level "+str(level)+" of the second branch is NaN")
 
                             output = torch.sigmoid(output)
                             floss2 += loss_ratios[level] * self.focalTverskyLoss(output, local_labels_xt)
@@ -257,9 +238,6 @@ class Pipeline:
                         # Consistency loss
                         with autocast(enabled=False):
                             output1T = warp_image(output1.float(), displacement, multi=True)
-                            
-                        if torch.isnan(output1T).any():
-                            print("Output of consist warp is NaN")
                         floss_c = self.focalTverskyLoss(torch.sigmoid(output2), output1T)
 
                         # -------------------------------------------------------------------------------------------
@@ -448,7 +426,6 @@ class Pipeline:
                 aggregator = tio.inference.GridAggregator(grid_sampler, overlap_mode="average")
                 patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.batch_size, shuffle=False, num_workers=self.num_worker)
 
-                print(subjectname)
                 for index, patches_batch in enumerate(tqdm(patch_loader)):
                     local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                     locations = patches_batch[tio.LOCATION]

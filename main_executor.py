@@ -6,8 +6,6 @@
 import argparse
 import random
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
-
 import numpy as np
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
