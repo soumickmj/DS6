@@ -79,7 +79,7 @@ if __name__ == '__main__':
                         default=True,
                         help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
     parser.add_argument('-deform',
-                        default=True,
+                        default=False,
                         action="store_true",
                         help="To use deformation for training")
     parser.add_argument('-clip_grads',
