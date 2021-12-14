@@ -365,10 +365,6 @@ class Pipeline:
                                     output1 = output
                                 if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                     output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
-                                self.logger.info("index " + str(index))
-                                for param_group in self.optimizer.param_groups:
-                                    self.logger.info(param_group['lr'])
-                                self.logger.info("++++++++++++++++++++++")
                                 output = torch.sigmoid(output)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
