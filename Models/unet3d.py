@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+ 
 # from __future__ import print_function, division
 '''
 
@@ -32,11 +32,11 @@ class conv_block(nn.Module):
             nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(inplace=True),
             nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.ReLU(inplace=True)
+            nn.LeakyReLU(inplace=True)
         )
 
     def forward(self, x):
@@ -221,8 +221,8 @@ class U_Net_DeepSup(nn.Module):
             nan_mask = torch.isnan(out)
             if nan_mask.any():
                 print("In", self.__class__.__name__)
-                print(module)
-                raise RuntimeError(f"Found NAN in output {i} at indices: ", nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
+                torch.save(inp, '/nfs1/sutrave/outputs/nan_values_input/inp_2_Nov.pt')
+                raise RuntimeError(" classname "+self.__class__.__name__+"i "+str(i)+f" module: {module} classname {self.__class__.__name__} Found NAN in output {i} at indices: ", nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
     def forward(self, x):
         # print("unet")

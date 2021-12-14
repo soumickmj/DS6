@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 """
 
 """
@@ -36,14 +36,17 @@ __maintainer__ = "Soumick Chatterjee"
 __email__ = "soumick.chatterjee@ovgu.de"
 __status__ = "Production"
 
+
 class Pipeline:
 
     def __init__(self, cmd_args, model, logger, dir_path, checkpoint_path, writer_training, writer_validating,
-                        training_set=None, validation_set=None, test_set=None):    
+                 training_set=None, validation_set=None, test_set=None):
 
-        self.model = model
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
         self.logger = logger
+        self.model = model
+        self.lr_1 = cmd_args.learning_rate
+        self.logger.info("learning rate " + str(self.lr_1))
+        self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
         self.num_epochs = cmd_args.num_epochs
 
         self.writer_training = writer_training
@@ -80,7 +83,7 @@ class Pipeline:
         if self.with_apex:
             self.scaler = GradScaler()
 
-        #set probabilistic property
+        # set probabilistic property
         if "Models.prob" in self.model.__module__:
             self.isProb = True
             from Models.prob_unet.utils import l2_regularisation
@@ -88,16 +91,22 @@ class Pipeline:
         else:
             self.isProb = False
 
-        if cmd_args.train: #Only if training is to be performed
-            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set)
-            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False)
+        if cmd_args.train:  # Only if training is to be performed
+            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
+                                                label_path=self.DATASET_FOLDER + '/train_label/',
+                                                crossvalidation_set=training_set)
+            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
+                                                     label_path=self.DATASET_FOLDER + '/validate_label/',
+                                                     crossvalidation_set=validation_set, is_train=False)
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=self.num_worker) 
-            self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=False,
-                                                                num_workers=self.num_worker)
-    
-    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, get_subjects_only=False, transforms=None):
+                                                            num_workers=self.num_worker)
+            self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
+                                                               shuffle=False,
+                                                               num_workers=self.num_worker)
+
+    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, get_subjects_only=False,
+                        transforms=None):
         vols = glob(vol_path + "*.nii") + glob(vol_path + "*.nii.gz")
         labels = glob(label_path + "*.nii") + glob(label_path + "*.nii.gz")
         subjects = []
@@ -106,11 +115,11 @@ class Pipeline:
             filename = os.path.basename(v).split('.')[0]
             l = [s for s in labels if filename in s][0]
             subject = tio.Subject(
-                                    img=tio.ScalarImage(v),
-                                    label=tio.LabelMap(l),
-                                    subjectname=filename,
-                                )
-            subjects.append(subject)   
+                img=tio.ScalarImage(v),
+                label=tio.LabelMap(l),
+                subjectname=filename,
+            )
+            subjects.append(subject)
 
         if get_subjects_only:
             return subjects
@@ -119,23 +128,23 @@ class Pipeline:
             subjects_dataset = tio.SubjectsDataset(subjects)
             sampler = tio.data.UniformSampler(self.patch_size)
             patches_queue = tio.Queue(
-                                        subjects_dataset,
-                                        max_length=(self.samples_per_epoch//len(subjects))*2,
-                                        samples_per_volume=self.samples_per_epoch//len(subjects),
-                                        sampler=sampler,
-                                        num_workers=0,
-                                        start_background=True
-                                    )
+                subjects_dataset,
+                max_length=(self.samples_per_epoch // len(subjects)) * 2,
+                samples_per_volume=self.samples_per_epoch // len(subjects),
+                sampler=sampler,
+                num_workers=0,
+                start_background=True
+            )
             return patches_queue
         else:
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
             grid_samplers = []
             for i in range(len(subjects)):
                 grid_sampler = tio.inference.GridSampler(
-                                                            subjects[i],
-                                                            self.patch_size,
-                                                            overlap,
-                                                        )
+                    subjects[i],
+                    self.patch_size,
+                    overlap,
+                )
                 grid_samplers.append(grid_sampler)
             return torch.utils.data.ConcatDataset(grid_samplers)
 
@@ -149,16 +158,18 @@ class Pipeline:
             checkpoint_path = self.checkpoint_path
 
         if self.with_apex:
-            self.model, self.optimizer, self.scaler = load_model_with_amp(self.model, self.optimizer, checkpoint_path, batch_index="best" if load_best else "last")
+            self.model, self.optimizer, self.scaler = load_model_with_amp(self.model, self.optimizer, checkpoint_path,
+                                                                          batch_index="best" if load_best else "last")
         else:
-            self.model, self.optimizer = load_model(self.model, self.optimizer, checkpoint_path, batch_index="best" if load_best else "last")
+            self.model, self.optimizer = load_model(self.model, self.optimizer, checkpoint_path,
+                                                    batch_index="best" if load_best else "last")
 
     def train(self):
         self.logger.debug("Training...")
 
         training_batch_index = 0
         for epoch in range(self.num_epochs):
-            print("Train Epoch: "+str(epoch) +" of "+ str(self.num_epochs))
+            print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
             self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
             total_floss = 0
             batch_index = 0
@@ -166,9 +177,9 @@ class Pipeline:
 
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                 local_labels = patches_batch['label'][tio.DATA].float().cuda()
-                
+
                 local_batch = torch.movedim(local_batch, -1, -3)
-                local_labels = torch.movedim(local_labels, -1, -3) 
+                local_labels = torch.movedim(local_labels, -1, -3)
 
                 # Transfer to GPU
                 self.logger.debug('Epoch: {} Batch Index: {}'.format(epoch, batch_index))
@@ -178,7 +189,7 @@ class Pipeline:
 
                 # try:
                 with autocast(enabled=self.with_apex):
-                    loss_ratios = [1, 0.66, 0.34]  #TODO param
+                    loss_ratios = [1, 0.66, 0.34]  # TODO param
 
                     floss = 0
                     output1 = 0
@@ -187,7 +198,7 @@ class Pipeline:
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
                     if not self.isProb:
-                        for output in self.model(local_batch): 
+                        for output in self.model(local_batch):
                             if level == 0:
                                 output1 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
@@ -198,11 +209,13 @@ class Pipeline:
                     else:
                         self.model.forward(local_batch, local_labels, training=True)
                         elbo = self.model.elbo(local_labels, analytic_kl=True)
-                        reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
+                        reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(
+                            self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
                         if self.with_apex:
-                            floss = [self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss, 
-                                    -(self.model.beta * self.model.kl), 
-                                    self.model.reg_alpha * reg_loss] 
+                            floss = [
+                                self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss,
+                                -(self.model.beta * self.model.kl),
+                                self.model.reg_alpha * reg_loss]
                         else:
                             floss = -elbo + self.model.reg_alpha * reg_loss
 
@@ -255,7 +268,7 @@ class Pipeline:
                 if self.with_apex:
                     if type(floss) is list:
                         for i in range(len(floss)):
-                            if i+1 == len(floss): #final loss
+                            if i + 1 == len(floss):  # final loss
                                 self.scaler.scale(floss[i]).backward()
                             else:
                                 self.scaler.scale(floss[i]).backward(retain_graph=True)
@@ -265,21 +278,22 @@ class Pipeline:
 
                     if self.clip_grads:
                         self.scaler.unscale_(self.optimizer)
-                        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1) 
-                        torch.nn.utils.clip_grad_value_(self.model.parameters(), 1) 
-                    
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                        #torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 else:
                     floss.backward()
                     if self.clip_grads:
-                        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
-                        torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                        #torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
                     self.optimizer.step()
 
-                if training_batch_index % 50 == 0:  # Save best metric evaluation weights                        
-                    write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item())
+                if training_batch_index % 50 == 0:  # Save best metric evaluation weights
+                    write_summary(self.writer_training, self.logger, training_batch_index,
+                                  focalTverskyLoss=floss.detach().item())
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
@@ -318,7 +332,7 @@ class Pipeline:
         :return:
         """
         self.logger.debug('Validating...')
-        print("Validate Epoch: "+str(epoch) +" of "+ str(self.num_epochs))
+        print("Validate Epoch: " + str(epoch) + " of " + str(self.num_epochs))
 
         floss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0
         no_patches = 0
@@ -334,14 +348,14 @@ class Pipeline:
                 local_labels = patches_batch['label'][tio.DATA].float().cuda()
 
                 local_batch = torch.movedim(local_batch, -1, -3)
-                local_labels = torch.movedim(local_labels, -1, -3) 
+                local_labels = torch.movedim(local_labels, -1, -3)
 
                 floss_iter = 0
                 output1 = 0
                 try:
                     with autocast(enabled=self.with_apex):
                         # Forward propagation
-                        loss_ratios = [1, 0.66, 0.34] #TODO param
+                        loss_ratios = [1, 0.66, 0.34]  # TODO param
                         level = 0
 
                         # Forward propagation
@@ -351,7 +365,10 @@ class Pipeline:
                                     output1 = output
                                 if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                     output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
-
+                                self.logger.info("index " + str(index))
+                                for param_group in self.optimizer.param_groups:
+                                    self.logger.info(param_group['lr'])
+                                self.logger.info("++++++++++++++++++++++")
                                 output = torch.sigmoid(output)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
@@ -398,11 +415,12 @@ class Pipeline:
             test_folder_path = self.DATASET_FOLDER + '/test/'
             test_label_path = self.DATASET_FOLDER + '/test_label/'
 
-            test_subjects = self.create_TIOSubDS(vol_path=test_folder_path, label_path=test_label_path, get_subjects_only=True)
+            test_subjects = self.create_TIOSubDS(vol_path=test_folder_path, label_path=test_label_path,
+                                                 get_subjects_only=True)
 
         overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
 
-        df = pd.DataFrame(columns = ["Subject", "Dice", "IoU"])
+        df = pd.DataFrame(columns=["Subject", "Dice", "IoU"])
         result_root = os.path.join(self.output_path, self.model_name, "results")
         os.makedirs(result_root, exist_ok=True)
 
@@ -419,18 +437,19 @@ class Pipeline:
                 del test_subject['subjectname']
 
                 grid_sampler = tio.inference.GridSampler(
-                                                            test_subject,
-                                                            self.patch_size,
-                                                            overlap,
-                                                        )
+                    test_subject,
+                    self.patch_size,
+                    overlap,
+                )
                 aggregator = tio.inference.GridAggregator(grid_sampler, overlap_mode="average")
-                patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.batch_size, shuffle=False, num_workers=self.num_worker)
+                patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.batch_size, shuffle=False,
+                                                           num_workers=self.num_worker)
 
                 for index, patches_batch in enumerate(tqdm(patch_loader)):
                     local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                     locations = patches_batch[tio.LOCATION]
 
-                    local_batch = torch.movedim(local_batch, -1, -3) 
+                    local_batch = torch.movedim(local_batch, -1, -3)
 
                     with autocast(enabled=self.with_apex):
                         if not self.isProb:
@@ -440,7 +459,8 @@ class Pipeline:
                             output = torch.sigmoid(output).detach().cpu()
                         else:
                             self.model.forward(local_batch, training=False)
-                            output = self.model.sample(testing=True).detach().cpu() #TODO: need to check whether sigmoid is needed for prob
+                            output = self.model.sample(
+                                testing=True).detach().cpu()  # TODO: need to check whether sigmoid is needed for prob
 
                     output = torch.movedim(output, -3, -1).type(local_batch.type())
                     aggregator.add_batch(output, locations)
@@ -454,7 +474,7 @@ class Pipeline:
                     test_logger.exception(error)
                     result = predicted > 0.5  # exception will be thrown only if input image seems to have just one color 1.0.
                 result = result.astype(np.float32)
-                
+
                 if label is not None:
                     datum = {"Subject": subjectname}
                     dice3D = dice(result, label)
@@ -463,21 +483,23 @@ class Pipeline:
                     df = pd.concat([df, datum], ignore_index=True)
 
                 if save_results:
-                    save_nifti(result, os.path.join(result_root, subjectname+".nii.gz"))
+                    save_nifti(result, os.path.join(result_root, subjectname + ".nii.gz"))
 
                     resultMIP = np.max(result, axis=-1)
-                    Image.fromarray((resultMIP*255).astype('uint8'), 'L').save(os.path.join(result_root, subjectname+"_MIP.tif"))
+                    Image.fromarray((resultMIP * 255).astype('uint8'), 'L').save(
+                        os.path.join(result_root, subjectname + "_MIP.tif"))
 
                     if label is not None:
                         overlay = create_diff_mask_binary(result, label)
-                        save_tifRGB(overlay, os.path.join(result_root, subjectname+"_colour.tif"))
+                        save_tifRGB(overlay, os.path.join(result_root, subjectname + "_colour.tif"))
 
                         overlayMIP = create_diff_mask_binary(resultMIP, np.max(label, axis=-1))
-                        Image.fromarray(overlayMIP.astype('uint8'), 'RGB').save(os.path.join(result_root, subjectname+"_colourMIP.tif"))
+                        Image.fromarray(overlayMIP.astype('uint8'), 'RGB').save(
+                            os.path.join(result_root, subjectname + "_colourMIP.tif"))
 
-                test_logger.info("Testing "+subjectname+"..." +
-                                "\n Dice:" + str(dice3D) +
-                                "\n JacardIndex:" + str(iou3D))
+                test_logger.info("Testing " + subjectname + "..." +
+                                 "\n Dice:" + str(dice3D) +
+                                 "\n JacardIndex:" + str(iou3D))
 
         df.to_excel(os.path.join(result_root, "Results_Main.xlsx"))
 
@@ -485,13 +507,14 @@ class Pipeline:
         image_name = os.path.basename(image_path).split('.')[0]
 
         subdict = {
-                        "img":tio.ScalarImage(image_path),
-                        "subjectname":image_name,
-                    }
-        
+            "img": tio.ScalarImage(image_path),
+            "subjectname": image_name,
+        }
+
         if bool(label_path):
             subdict["label"] = tio.LabelMap(label_path)
 
         subject = tio.Subject(**subdict)
 
         self.test(predict_logger, save_results=True, test_subjects=[subject])
+

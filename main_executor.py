@@ -100,7 +100,7 @@ if __name__ == '__main__':
                         help="Number of epochs for training")
     parser.add_argument("-learning_rate",
                         type=float,
-                        default=0.01,
+                        default=0.001,
                         help="Learning rate")
     parser.add_argument("-patch_size",
                         type=int,
