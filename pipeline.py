@@ -25,7 +25,7 @@ from Utils.elastic_transform import RandomElasticDeformation, warp_image
 from Utils.result_analyser import *
 from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 create_mask, load_model, load_model_with_amp,
-                                save_model, write_summary)
+                                save_model, write_summary, write_Epoch_summary)
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -172,6 +172,9 @@ class Pipeline:
             print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
             self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
             total_floss = 0
+            total_DiceLoss = 0
+            total_IOU = 0
+            total_DiceScore = 0
             batch_index = 0
             for batch_index, patches_batch in enumerate(tqdm(self.train_loader)):
 
@@ -194,16 +197,27 @@ class Pipeline:
                     floss = 0
                     output1 = 0
                     level = 0
+                    diceLoss_batch = 0
+                    diceScore_batch = 0
+                    IOU_batch = 0
+                    num_patches = 0
 
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
                     if not self.isProb:
+                        #Compute DiceLoss using batch labels
                         for output in self.model(local_batch):
+                            num_patches += 1
                             if level == 0:
                                 output1 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                 output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
                             output = torch.sigmoid(output)
+                            dl_batch, ds_batch = self.dice(output, local_labels)
+                            IOU_score = self.iou(output, local_labels)
+                            diceLoss_batch += dl_batch.detach().item()
+                            diceScore_batch += ds_batch.detach().item()
+                            IOU_batch += IOU_score.detach().item()
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             level += 1
                     else:
@@ -257,12 +271,22 @@ class Pipeline:
                         # Total loss
                         floss = floss + floss2 + floss_c
 
+                #Compute total DiceLoss, DiceScore and IOU per batch
+                if(num_patches > 0):
+                    diceLoss_batch = diceLoss_batch / num_patches
+                    diceScore_batch = diceScore_batch / num_patches
+                    IOU_batch = IOU_batch / num_patches
+
+                total_DiceLoss += diceLoss_batch
+                total_DiceScore += diceScore_batch
+                total_IOU += IOU_batch        
+
                 # except Exception as error:
                 #     self.logger.exception(error)
                 #     sys.exit()
 
-                self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + "Training..." +
-                                 "\n focalTverskyLoss:" + str(floss))
+                self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + " Training..." +
+                                 "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU))
 
                 # Calculating gradients
                 if self.with_apex:
@@ -292,8 +316,7 @@ class Pipeline:
                     self.optimizer.step()
 
                 if training_batch_index % 50 == 0:  # Save best metric evaluation weights
-                    write_summary(self.writer_training, self.logger, training_batch_index,
-                                  focalTverskyLoss=floss.detach().item())
+                    write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item(), diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
@@ -306,9 +329,15 @@ class Pipeline:
             # Calculate the average loss per batch in one epoch
             total_floss /= (batch_index + 1.0)
 
+            # Calculate the average DiceLoss, DiceScore and IOU per epoch
+            total_DiceLoss /= (batch_index + 1.0)
+            total_DiceScore /= (batch_index + 1.0)
+            total_IOU /= (batch_index + 1.0)
+
             # Print every epoch
             self.logger.info("Epoch:" + str(epoch) + " Average Training..." +
-                             "\n focalTverskyLoss:" + str(total_floss))
+                             "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU))
+            write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, diceLoss = total_DiceLoss, diceScore = total_DiceScore, iou = total_IOU)
 
             save_model(self.checkpoint_path, {
                 'epoch_type': 'last',
@@ -382,6 +411,10 @@ class Pipeline:
                 dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 dloss += dl.detach().item()
 
+                # Log validation losses
+                self.logger.info("Batch_Index:" + str(index) + " Validation..." +
+                                 "\n focalTverskyLoss:" + str(floss) + "\n DiceLoss: " + str(dloss))
+
         # Average the losses
         floss = floss / no_patches
         dloss = dloss / no_patches
@@ -391,6 +424,8 @@ class Pipeline:
                          "\n DiceLoss:" + str(dloss))
 
         write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, dloss, 0, 0)
+        
+        write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, diceLoss = dloss, diceScore = 0, iou = 0)
 
         if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = floss

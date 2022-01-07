@@ -53,6 +53,18 @@ def write_summary(writer, logger, index, original=None, reconstructed=None, foca
         writer.add_image('reconstructed', reconstructed.cpu().data.numpy()[None,:], index)
         writer.add_image('diff', np.moveaxis(create_diff_mask(reconstructed,original,logger), -1, 0), index) #create_diff_mask is of the format HXWXC, but CXHXW is needed
 
+def write_Epoch_summary(writer, index, focalTverskyLoss=0, diceLoss=0, diceScore=0, iou=0):
+    """
+    Method to write summary to the tensorboard.
+    index: global_index for the visualisation
+    Losses: all losses used as metric
+    """
+    print('Writing Epoch Summary...')
+    writer.add_scalar('FocalTverskyLoss (Per Epoch)', focalTverskyLoss, index)
+    writer.add_scalar('DiceLoss (Per Epoch)', diceLoss, index)
+    writer.add_scalar('DiceScore (Per Epoch)', diceScore, index)
+    writer.add_scalar('IOU (Per Epoch)', iou, index)  
+
 def save_model(CHECKPOINT_PATH, state, filename='checkpoint'):
     """
     Method to save model
