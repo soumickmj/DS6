@@ -98,8 +98,8 @@ class MIP_Loss(nn.Module):
         self.alpha = alpha
 
     def forward(self, y_pred, y_true):
-        y_true_MIP = torch.max(y_true, -1)
-        y_pred_MIP = torch.max(y_pred, -1)
+        y_true_MIP = torch.max(y_true, -1)[0]
+        y_pred_MIP = torch.max(y_pred, -1)[0]
         y_true_pos = torch.flatten(y_true_MIP)
         y_pred_pos = torch.flatten(y_pred_MIP)
         true_pos = torch.sum(y_true_pos * y_pred_pos)

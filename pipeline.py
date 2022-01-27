@@ -173,6 +173,7 @@ class Pipeline:
             print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
             self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
             total_floss = 0
+            total_mipLoss = 0
             total_DiceLoss = 0
             total_IOU = 0
             total_DiceScore = 0
@@ -196,6 +197,7 @@ class Pipeline:
                     loss_ratios = [1, 0.66, 0.34]  # TODO param
 
                     floss = 0
+                    mip_loss = 0
                     output1 = 0
                     level = 0
                     diceLoss_batch = 0
@@ -219,6 +221,7 @@ class Pipeline:
                             diceLoss_batch += dl_batch.detach().item()
                             diceScore_batch += ds_batch.detach().item()
                             IOU_batch += IOU_score.detach().item()
+                            mip_loss += loss_ratios[level] * self.mip_loss(output, local_labels)
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             level += 1
                     else:
@@ -272,22 +275,27 @@ class Pipeline:
                         # Total loss
                         floss = floss + floss2 + floss_c
 
+                    else:
+                        floss = floss + mip_loss
+
                 #Compute total DiceLoss, DiceScore and IOU per batch
                 if(num_patches > 0):
                     diceLoss_batch = diceLoss_batch / num_patches
                     diceScore_batch = diceScore_batch / num_patches
                     IOU_batch = IOU_batch / num_patches
+                    mip_loss = mip_loss / num_patches
 
                 total_DiceLoss += diceLoss_batch
                 total_DiceScore += diceScore_batch
-                total_IOU += IOU_batch        
+                total_IOU += IOU_batch   
+                total_mipLoss += mip_loss     
 
                 # except Exception as error:
                 #     self.logger.exception(error)
                 #     sys.exit()
 
                 self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + " Training..." +
-                                 "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU))
+                                 "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU) + " mipLoss: " + str(total_mipLoss))
 
                 # Calculating gradients
                 if self.with_apex:
@@ -317,7 +325,7 @@ class Pipeline:
                     self.optimizer.step()
 
                 if training_batch_index % 50 == 0:  # Save best metric evaluation weights
-                    write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item(), diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
+                    write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item(), mipLoss=mip_loss.detach().item(), diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
@@ -329,6 +337,7 @@ class Pipeline:
 
             # Calculate the average loss per batch in one epoch
             total_floss /= (batch_index + 1.0)
+            total_mipLoss /= (batch_index + 1.0)
 
             # Calculate the average DiceLoss, DiceScore and IOU per epoch
             total_DiceLoss /= (batch_index + 1.0)
@@ -337,8 +346,8 @@ class Pipeline:
 
             # Print every epoch
             self.logger.info("Epoch:" + str(epoch) + " Average Training..." +
-                             "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU))
-            write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, diceLoss = total_DiceLoss, diceScore = total_DiceScore, iou = total_IOU)
+                             "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU) + " mipLoss: " + str(total_mipLoss))
+            write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, mipLoss=total_mipLoss, diceLoss = total_DiceLoss, diceScore = total_DiceScore, iou = total_IOU)
 
             save_model(self.checkpoint_path, {
                 'epoch_type': 'last',
@@ -364,7 +373,7 @@ class Pipeline:
         self.logger.debug('Validating...')
         print("Validate Epoch: " + str(epoch) + " of " + str(self.num_epochs))
 
-        floss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0
+        floss, mipLoss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0, 0
         no_patches = 0
         self.model.eval()
         data_loader = self.validate_loader
@@ -381,6 +390,7 @@ class Pipeline:
                 local_labels = torch.movedim(local_labels, -1, -3)
 
                 floss_iter = 0
+                mipLoss_iter = 0
                 output1 = 0
                 try:
                     with autocast(enabled=self.with_apex):
@@ -396,6 +406,7 @@ class Pipeline:
                                 if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                     output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
                                 output = torch.sigmoid(output)
+                                mipLoss_iter += loss_ratios[level] * self.mip_loss(output, local_labels)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
                         else:
@@ -409,24 +420,27 @@ class Pipeline:
                     self.logger.exception(error)
 
                 floss += floss_iter
+                mipLoss += mipLoss_iter
                 dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 dloss += dl.detach().item()
 
                 # Log validation losses
                 self.logger.info("Batch_Index:" + str(index) + " Validation..." +
-                                 "\n focalTverskyLoss:" + str(floss) + "\n DiceLoss: " + str(dloss))
+                                 "\n focalTverskyLoss:" + str(floss) + "\n DiceLoss: " + str(dloss) + "\n MipLoss: " + str(mipLoss))
 
         # Average the losses
         floss = floss / no_patches
+        mipLoss = mipLoss / no_patches
         dloss = dloss / no_patches
         process = ' Validating'
         self.logger.info("Epoch:" + str(tainingIndex) + process + "..." +
                          "\n FocalTverskyLoss:" + str(floss) +
-                         "\n DiceLoss:" + str(dloss))
+                         "\n DiceLoss:" + str(dloss) +
+                         "\n MipLoss:" + str(mipLoss))
 
-        write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, dloss, 0, 0)
+        write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, mipLoss, dloss, 0, 0)
         
-        write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, diceLoss = dloss, diceScore = 0, iou = 0)
+        write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss = dloss, diceScore = 0, iou = 0)
 
         if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = floss
@@ -526,13 +540,13 @@ class Pipeline:
                     Image.fromarray((resultMIP * 255).astype('uint8'), 'L').save(
                         os.path.join(result_root, subjectname + "_MIP.tif"))
 
-                    predicted_mip = torch.max(predicted_tensor, -1).detach().cpu().squeeze().numpy()
+                    predicted_mip = torch.max(predicted_tensor, -1)[0].detach().cpu().squeeze().numpy()
                     Image.fromarray((predicted_mip * 255).astype('uint8'), 'L').save(
                         os.path.join(result_root, subjectname + "_Predicted_MIP.tif"))
 
                     if label is not None:
 
-                        true_MIP = torch.max(label_MIP, -1).detach().cpu().squeeze().numpy()
+                        true_MIP = torch.max(label_MIP, -1)[0].detach().cpu().squeeze().numpy()
                         Image.fromarray((true_MIP * 255).astype('uint8'), 'L').save(
                         os.path.join(result_root, subjectname + "_True_MIP.tif"))
 
