@@ -100,10 +100,6 @@ class Pipeline:
                                                     label_path=self.DATASET_FOLDER + '/train_label/',
                                                     crossvalidation_set=training_set)
                 self.pre_loaded_train_lbl_data = traindataset.subjects_dataset.pre_loaded_lbl_data
-                del traindataset.subjects_dataset.pre_loaded_img
-                del traindataset.subjects_dataset.pre_loaded_lbl
-                del traindataset.subjects_dataset.pre_loaded_lbl_data
-                traindataset.pre_load = False
 
                 validationdataset, pre_loaded_validation_subjects = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
                                                          label_path=self.DATASET_FOLDER + '/validate_label/',
@@ -135,7 +131,7 @@ class Pipeline:
             patches_queue = tio.Queue(
                 trainDS,
                 max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_img)) * 2,
-                samples_per_volume=len(trainDS.pre_loaded_img),
+                samples_per_volume=1,
                 sampler=sampler,
                 num_workers=0,
                 start_background=True
