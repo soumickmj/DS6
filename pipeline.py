@@ -107,10 +107,10 @@ class Pipeline:
                 self.pre_loaded_validate_lbl_data = pre_loaded_validation_subjects.pre_loaded_lbl_data
 
                 self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                                num_workers=self.num_worker)
+                                                                num_workers=self.num_worker, pin_memory=True)
                 self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
                                                                    shuffle=False,
-                                                                   num_workers=self.num_worker)
+                                                                   num_workers=self.num_worker, pin_memory=True)
 
     def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, is_validate=False, get_subjects_only=False,
                         transforms=None):
