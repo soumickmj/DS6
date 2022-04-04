@@ -26,6 +26,7 @@ from Utils.result_analyser import *
 from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 create_mask, load_model, load_model_with_amp,
                                 save_model, write_summary, write_Epoch_summary)
+from Utils.datasets import SRDataset
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -76,6 +77,8 @@ class Pipeline:
         self.dice = Dice()
         self.focalTverskyLoss = FocalTverskyLoss()
         self.mip_loss = MIP_Loss()
+        self.floss_coeff = cmd_args.floss_coeff
+        self.mip_loss_coeff = cmd_args.mip_loss_coeff
         self.iou = IOU()
 
         self.LOWEST_LOSS = float('inf')
@@ -93,51 +96,89 @@ class Pipeline:
             self.isProb = False
 
         if cmd_args.train:  # Only if training is to be performed
-            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
-                                                label_path=self.DATASET_FOLDER + '/train_label/',
-                                                crossvalidation_set=training_set)
-            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
-                                                     label_path=self.DATASET_FOLDER + '/validate_label/',
-                                                     crossvalidation_set=validation_set, is_train=False)
+                traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
+                                                    label_path=self.DATASET_FOLDER + '/train_label/',
+                                                    crossvalidation_set=training_set)
+                self.pre_loaded_train_lbl_data = traindataset.subjects_dataset.pre_loaded_lbl_data
 
-            self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=self.num_worker)
-            self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
-                                                               shuffle=False,
-                                                               num_workers=self.num_worker)
+                validationdataset, pre_loaded_validation_subjects = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
+                                                         label_path=self.DATASET_FOLDER + '/validate_label/',
+                                                         crossvalidation_set=validation_set, is_train=False, is_validate=True)
+                self.pre_loaded_validate_lbl_data = pre_loaded_validation_subjects.pre_loaded_lbl_data
 
-    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, get_subjects_only=False,
+                self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
+                                                                num_workers=self.num_worker)
+                self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
+                                                                   shuffle=False,
+                                                                   num_workers=self.num_worker)
+
+    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, is_validate=False, get_subjects_only=False,
                         transforms=None):
-        vols = glob(vol_path + "*.nii") + glob(vol_path + "*.nii.gz")
-        labels = glob(label_path + "*.nii") + glob(label_path + "*.nii.gz")
-        subjects = []
-        for i in range(len(vols)):
-            v = vols[i]
-            filename = os.path.basename(v).split('.')[0]
-            l = [s for s in labels if filename in s][0]
-            subject = tio.Subject(
-                img=tio.ScalarImage(v),
-                label=tio.LabelMap(l),
-                subjectname=filename,
-            )
-            subjects.append(subject)
-
-        if get_subjects_only:
-            return subjects
-
         if is_train:
-            subjects_dataset = tio.SubjectsDataset(subjects)
+            trainDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
+                                dir_path=self.DATASET_FOLDER + '/train/',
+                                label_dir_path=self.DATASET_FOLDER + '/train_label/',
+                                # TODO: implement non-iso patch-size, now only using the first element
+                                stride_depth=self.stride_depth, stride_length=self.stride_length,
+                                stride_width=self.stride_width, Size=None, fly_under_percent=None,
+                                # TODO: implement fly_under_percent, if needed
+                                patch_size_us=None, pre_interpolate=None, norm_data=False,
+                                pre_load=True,
+                                return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
+            if get_subjects_only:
+                return trainDS
             sampler = tio.data.UniformSampler(self.patch_size)
             patches_queue = tio.Queue(
-                subjects_dataset,
-                max_length=(self.samples_per_epoch // len(subjects)) * 2,
-                samples_per_volume=self.samples_per_epoch // len(subjects),
+                trainDS,
+                max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_img)) * 2,
+                samples_per_volume=len(trainDS.pre_loaded_img),
                 sampler=sampler,
                 num_workers=0,
                 start_background=True
             )
             return patches_queue
+        elif is_validate:
+            validationDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
+                                dir_path=self.DATASET_FOLDER + '/validate/',
+                                label_dir_path=self.DATASET_FOLDER + '/validate_label/',
+                                # TODO: implement non-iso patch-size, now only using the first element
+                                stride_depth=self.stride_depth, stride_length=self.stride_length,
+                                stride_width=self.stride_width, Size=None, fly_under_percent=None,
+                                # TODO: implement fly_under_percent, if needed
+                                patch_size_us=None, pre_interpolate=None, norm_data=False,
+                                pre_load=True,
+                                return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
+            overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
+            grid_samplers = []
+            for i in range(len(validationDS)):
+                grid_sampler = tio.inference.GridSampler(
+                    validationDS[i],
+                    self.patch_size,
+                    overlap,
+                )
+                grid_samplers.append(grid_sampler)
+            return (torch.utils.data.ConcatDataset(grid_samplers), validationDS)
         else:
+            vols = glob(vol_path + "*.nii") + glob(vol_path + "*.nii.gz")
+            labels = glob(label_path + "*.nii") + glob(label_path + "*.nii.gz")
+            subjects = []
+            for i in range(len(vols)):
+                v = vols[i]
+                filename = os.path.basename(v).split('.')[0]
+                l = [s for s in labels if filename in s][0]
+                subject = tio.Subject(
+                    img=tio.ScalarImage(v),
+                    label=tio.LabelMap(l),
+                    subjectname=filename,
+                )
+                transforms = tio.ToCanonical(), tio.Resample(tio.ScalarImage(v))
+                transform = tio.Compose(transforms)
+                subject = transform(subject)
+                subjects.append(subject)
+
+            if get_subjects_only:
+                return subjects
+            
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
             grid_samplers = []
             for i in range(len(subjects)):
@@ -180,8 +221,8 @@ class Pipeline:
             batch_index = 0
             for batch_index, patches_batch in enumerate(tqdm(self.train_loader)):
 
-                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
-                local_labels = patches_batch['label'][tio.DATA].float().cuda()
+                local_batch = self.normaliser(patches_batch['img'].float().cuda())
+                local_labels = patches_batch['label'].float().cuda()
 
                 local_batch = torch.movedim(local_batch, -1, -3)
                 local_labels = torch.movedim(local_labels, -1, -3)
@@ -208,7 +249,7 @@ class Pipeline:
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
                     if not self.isProb:
-                        #Compute DiceLoss using batch labels
+                        # Compute DiceLoss using batch labels
                         for output in self.model(local_batch):
                             num_patches += 1
                             if level == 0:
@@ -221,8 +262,27 @@ class Pipeline:
                             diceLoss_batch += dl_batch.detach().item()
                             diceScore_batch += ds_batch.detach().item()
                             IOU_batch += IOU_score.detach().item()
-                            mip_loss += loss_ratios[level] * self.mip_loss(output, local_labels)
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
+
+                            # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
+                            patch_subject_name = patches_batch['subjectname'][num_patches - 1]
+                            label_3d = self.pre_loaded_train_lbl_data[patch_subject_name]
+                            label_3d = torch.from_numpy(label_3d).float().cuda()
+                            patch_width_coord, patch_length_coord, patch_depth_coord = \
+                                patches_batch["start_coords"][0][0][
+                                    num_patches - 1], \
+                                patches_batch["start_coords"][0][1][
+                                    num_patches - 1], \
+                                patches_batch["start_coords"][0][2][
+                                    num_patches - 1]
+
+                            true_mip = torch.amax(label_3d, -1)
+                            true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
+                                             patch_length_coord:patch_length_coord + self.patch_size]
+                            predicted_patch_op = output[num_patches - 1]
+                            predicted_patch_mip = torch.amax(predicted_patch_op, -1)
+                            mip_loss += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+
                             level += 1
                     else:
                         self.model.forward(local_batch, local_labels, training=True)
@@ -276,10 +336,10 @@ class Pipeline:
                         floss = floss + floss2 + floss_c
 
                     else:
-                        floss = floss + mip_loss
+                        floss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
 
-                #Compute total DiceLoss, DiceScore and IOU per batch
-                if(num_patches > 0):
+                # Compute total DiceLoss, DiceScore and IOU per batch
+                if (num_patches > 0):
                     diceLoss_batch = diceLoss_batch / num_patches
                     diceScore_batch = diceScore_batch / num_patches
                     IOU_batch = IOU_batch / num_patches
@@ -287,15 +347,17 @@ class Pipeline:
 
                 total_DiceLoss += diceLoss_batch
                 total_DiceScore += diceScore_batch
-                total_IOU += IOU_batch   
-                total_mipLoss += mip_loss     
+                total_IOU += IOU_batch
+                total_mipLoss += mip_loss
 
                 # except Exception as error:
                 #     self.logger.exception(error)
                 #     sys.exit()
 
                 self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + " Training..." +
-                                 "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU) + " mipLoss: " + str(total_mipLoss))
+                                 "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(
+                    total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(
+                    total_IOU) + " mipLoss: " + str(total_mipLoss))
 
                 # Calculating gradients
                 if self.with_apex:
@@ -312,7 +374,7 @@ class Pipeline:
                     if self.clip_grads:
                         self.scaler.unscale_(self.optimizer)
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
-                        #torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+                        # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
@@ -320,12 +382,14 @@ class Pipeline:
                     floss.backward()
                     if self.clip_grads:
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
-                        #torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+                        # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
                     self.optimizer.step()
 
                 if training_batch_index % 50 == 0:  # Save best metric evaluation weights
-                    write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item(), mipLoss=mip_loss.detach().item(), diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
+                    write_summary(self.writer_training, self.logger, training_batch_index,
+                                  focalTverskyLoss=floss.detach().item(), mipLoss=mip_loss.detach().item(),
+                                  diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
@@ -346,8 +410,11 @@ class Pipeline:
 
             # Print every epoch
             self.logger.info("Epoch:" + str(epoch) + " Average Training..." +
-                             "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(total_IOU) + " mipLoss: " + str(total_mipLoss))
-            write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, mipLoss=total_mipLoss, diceLoss = total_DiceLoss, diceScore = total_DiceScore, iou = total_IOU)
+                             "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(
+                total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(
+                total_IOU) + " mipLoss: " + str(total_mipLoss))
+            write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, mipLoss=total_mipLoss,
+                                diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
 
             save_model(self.checkpoint_path, {
                 'epoch_type': 'last',
@@ -383,8 +450,8 @@ class Pipeline:
                 self.logger.info("loading" + str(index))
                 no_patches += 1
 
-                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
-                local_labels = patches_batch['label'][tio.DATA].float().cuda()
+                local_batch = self.normaliser(patches_batch['img'].float().cuda())
+                local_labels = patches_batch['label'].float().cuda()
 
                 local_batch = torch.movedim(local_batch, -1, -3)
                 local_labels = torch.movedim(local_labels, -1, -3)
@@ -397,16 +464,36 @@ class Pipeline:
                         # Forward propagation
                         loss_ratios = [1, 0.66, 0.34]  # TODO param
                         level = 0
-
+                        num_patches = 0
                         # Forward propagation
                         if not self.isProb:
                             for output in self.model(local_batch):
+                                num_patches += 1
                                 if level == 0:
                                     output1 = output
                                 if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
                                     output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
                                 output = torch.sigmoid(output)
-                                mipLoss_iter += loss_ratios[level] * self.mip_loss(output, local_labels)
+
+                                # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
+                                patch_subject_name = patches_batch['subjectname'][num_patches - 1]
+                                label_3d = self.pre_loaded_validate_lbl_data[patch_subject_name]
+                                label_3d = torch.from_numpy(label_3d).float().cuda()
+                                patch_width_coord, patch_length_coord, patch_depth_coord = \
+                                    patches_batch["start_coords"][0][0][
+                                        num_patches - 1], \
+                                    patches_batch["start_coords"][0][1][
+                                        num_patches - 1], \
+                                    patches_batch["start_coords"][0][2][
+                                        num_patches - 1]
+
+                                true_mip = torch.amax(label_3d, -1)
+                                true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
+                                                 patch_length_coord:patch_length_coord + self.patch_size]
+                                predicted_patch_op = output[num_patches - 1]
+                                predicted_patch_mip = torch.amax(predicted_patch_op, -1)
+                                mipLoss_iter += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip,
+                                                                                           true_mip_patch)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
                         else:
@@ -426,7 +513,8 @@ class Pipeline:
 
                 # Log validation losses
                 self.logger.info("Batch_Index:" + str(index) + " Validation..." +
-                                 "\n focalTverskyLoss:" + str(floss) + "\n DiceLoss: " + str(dloss) + "\n MipLoss: " + str(mipLoss))
+                                 "\n focalTverskyLoss:" + str(floss) + "\n DiceLoss: " + str(
+                    dloss) + "\n MipLoss: " + str(mipLoss))
 
         # Average the losses
         floss = floss / no_patches
@@ -438,9 +526,10 @@ class Pipeline:
                          "\n DiceLoss:" + str(dloss) +
                          "\n MipLoss:" + str(mipLoss))
 
-        write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, mipLoss, dloss, 0, 0)
-        
-        write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss = dloss, diceScore = 0, iou = 0)
+        write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, mipLoss, dloss,
+                      0, 0)
+
+        write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss=dloss, diceScore=0, iou=0)
 
         if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = floss

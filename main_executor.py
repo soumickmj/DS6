@@ -129,6 +129,14 @@ if __name__ == '__main__':
                         type=int,
                         default=8,
                         help="Number of worker threads")
+    parser.add_argument("-floss_coeff",
+                        type=float,
+                        default=0.5,
+                        help="Loss coefficient for floss in total loss")
+    parser.add_argument("-mip_loss_coeff",
+                        type=float,
+                        default=0.5,
+                        help="Loss coefficient for mip_loss in total loss")
 
     args = parser.parse_args()
 
