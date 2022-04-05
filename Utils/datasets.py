@@ -63,9 +63,13 @@ class SRDataset(Dataset):
         self.patch_size_us = patch_size_us  # If already downsampled data is supplied, then this can be used. Calculate already based on the downsampling size.
         self.norm_data = norm_data
         self.pre_load = pre_load
-        self.pre_loaded_lbl = {}
-        self.pre_loaded_img = {}
-        self.pre_loaded_lbl_data = {}
+        self.pre_loaded_data = pd.DataFrame(columns=["pre_loaded_img", "pre_loaded_lbl", "pre_loaded_lbl_data"])
+        pre_loaded_lbl = np.empty([1], dtype=object)
+        pre_loaded_img = np.empty([1], dtype=object)
+        pre_loaded_lbl_data = np.empty([1], dtype=object)
+        pre_loaded_lbl = np.delete(pre_loaded_lbl, 0)
+        pre_loaded_img = np.delete(pre_loaded_img, 0)
+        pre_loaded_lbl_data = np.delete(pre_loaded_lbl_data, 0)
 
         if not self.norm_data:
             print("No Norm")  # TODO remove
@@ -120,32 +124,17 @@ class SRDataset(Dataset):
                         "skipping file as label for the corresponding image doesn't exist :" + str(imageFileName))
                     continue
 
-            # imageFile = nibabel.load(imageFileName)  # shape (Length X Width X Depth X Channels)
             imageFile = tio.ScalarImage(imageFileName)  # shape (Length X Width X Depth X Channels)
-            imageFile_data, img_affine = imageFile.data, imageFile.affine
-            header_shape_us = imageFile_data.shape
-            imageFile_max = imageFile_data.max()
-            # labelFile = nibabel.load(
-            #     labelFileName)  # shape (Length X Width X Depth X Channels) - changed to label file name as input image can have different (lower) size
+            header_shape_us = imageFile.data.shape
+            imageFile_max = imageFile.data.max()
             labelFile = tio.LabelMap(
                 labelFileName)  # shape (Length X Width X Depth X Channels) - changed to label file name as input image can have different (lower) size
             labelFile_data = nibabel.load(labelFileName).get_data()
-            # labelFile_data, labelFile_affine = labelFile.data, labelFile.affine
             header_shape = labelFile.data.shape
             labelFile_max = labelFile_data.max()
             label_filename_trimmed = labelFileName.split("\\")
             if label_filename_trimmed:
                 label_filename_trimmed = label_filename_trimmed[len(label_filename_trimmed) - 1]
-
-            # imageFile = nibabel.load(imageFileName)  # shape (Length X Width X Depth X Channels)
-            # header_shape_us = imageFile.header.get_data_shape()
-            # imageFile_data = imageFile.get_data()
-            # imageFile_max = imageFile_data.max()
-            # labelFile = nibabel.load(
-            #     labelFileName)  # shape (Length X Width X Depth X Channels) - changed to label file name as input image can have different (lower) size
-            # header_shape = labelFile.header.get_data_shape()
-            # labelFile_data = labelFile.get_data()
-            # labelFile_max = labelFile_data.max()
 
             self.logger.debug(header_shape)
             n_depth, n_length, n_width = header_shape[3], header_shape[2], header_shape[
@@ -154,9 +143,12 @@ class SRDataset(Dataset):
                 1]  # gives depth which is no. of slices
 
             if self.pre_load:
-                self.pre_loaded_img[imageFileName] = imageFile_data
-                self.pre_loaded_lbl[labelFileName] = labelFile.data
-                self.pre_loaded_lbl_data[label_filename_trimmed] = labelFile_data
+                pre_loaded_img = np.append(pre_loaded_img,
+                                           {'subjectname': imageFileName, 'data': imageFile.data})
+                pre_loaded_lbl = np.append(pre_loaded_lbl,
+                                           {'subjectname': labelFileName, 'data': labelFile.data})
+                pre_loaded_lbl_data = np.append(pre_loaded_lbl_data,
+                                           {'subjectname': label_filename_trimmed, 'data': labelFile_data})
 
             if patch_size != 1 and (n_depth < patch_size or n_length < patch_size or n_width < patch_size):
                 self.logger.debug(
@@ -240,6 +232,7 @@ class SRDataset(Dataset):
                     depth_i += stride_depth
 
         self.data = pd.DataFrame.from_dict(dataDict)
+        self.pre_loaded_data = pd.DataFrame.from_dict({'pre_loaded_img': pre_loaded_img, 'pre_loaded_lbl': pre_loaded_lbl, 'pre_loaded_lbl_data': pre_loaded_lbl_data})
         self.logger.debug(len(self.data))
 
         if Size is not None and len(self.data) > Size:
@@ -272,16 +265,16 @@ class SRDataset(Dataset):
         labelFile_max = self.data.iloc[index, 5]
 
         if self.pre_load:
-            groundTruthImages = self.pre_loaded_lbl[self.data.iloc[index, 3]]
-            groundTruthImages_handler = groundTruthImages
+            groundTruthImages = [lbl for lbl in self.pre_loaded_data['pre_loaded_lbl'] if lbl['subjectname'] == self.data.iloc[index, 3]]
+            groundTruthImages = groundTruthImages[0]['data']
         else:
             groundTruthImages = tio.LabelMap(self.data.iloc[index, 3]) # TODO: Update this to tio.ScalarImage
-            groundTruthImages_handler = groundTruthImages.data
+            groundTruthImages = groundTruthImages.data
 
         startIndex_depth = self.data.iloc[index, 6]
         startIndex_length = self.data.iloc[index, 7]
         startIndex_width = self.data.iloc[index, 8]
-        start_coords = [(startIndex_width, startIndex_length, startIndex_depth)]
+        start_coords = np.array([(startIndex_width, startIndex_length, startIndex_depth)])
 
         if self.patch_size_us is not None:
             startIndex_depth_us = self.data.iloc[index, 9]
@@ -291,18 +284,18 @@ class SRDataset(Dataset):
 
         if self.patch_size != -1:
             if len(groundTruthImages.shape) == 4:  # don't know why, but an additional dim is noticed in some of the fully-sampled NIFTIs
-                target_voxel = groundTruthImages_handler[:, startIndex_width:startIndex_width + self.patch_size,
+                target_voxel = groundTruthImages[:, startIndex_width:startIndex_width + self.patch_size,
                                startIndex_length:startIndex_length + self.patch_size,
                                startIndex_depth:startIndex_depth + self.patch_size]  # .squeeze()
             else:
-                target_voxel = groundTruthImages_handler[startIndex_width:startIndex_width + self.patch_size,
+                target_voxel = groundTruthImages[startIndex_width:startIndex_width + self.patch_size,
                                startIndex_length:startIndex_length + self.patch_size,
                                startIndex_depth:startIndex_depth + self.patch_size]  # .squeeze()
         else:
             if len(groundTruthImages.shape) == 4:  # don't know why, but an additional dim is noticed in some of the fully-sampled NIFTIs
-                target_voxel = groundTruthImages_handler[:, :, :, :]  # .squeeze()
+                target_voxel = groundTruthImages[:, :, :, :]  # .squeeze()
             else:
-                target_voxel = groundTruthImages_handler[...]  # .squeeze()
+                target_voxel = groundTruthImages[...]  # .squeeze()
 
         if self.fly_under_percent is not None:
             if self.patch_size != -1:
@@ -314,24 +307,23 @@ class SRDataset(Dataset):
                 voxel = voxel[..., ::2]  # 2 for 25% - harcoded. TODO fix it
         else:
             if self.pre_load:
-                images = self.pre_loaded_img[self.data.iloc[index, 0]]
-                images_handler = images
+                image_us = [img for img in self.pre_loaded_data['pre_loaded_img'] if img['subjectname'] == self.data.iloc[index, 0]]
+                image_us = image_us[0]['data']
             else:
-                images = tio.ScalarImage(self.data.iloc[index, 0]) # TODO change this to use tio.ScalarImage
-                images_handler = images
+                image_us = tio.ScalarImage(self.data.iloc[index, 0]) # TODO change this to use tio.ScalarImage
 
             # images = nibabel.load(self.data.iloc[index, 0])
             if self.patch_size_us is not None:
-                voxel = images_handler[:, startIndex_width_us:startIndex_width_us + self.patch_size_us,
+                voxel = image_us[:, startIndex_width_us:startIndex_width_us + self.patch_size_us,
                         startIndex_length_us:startIndex_length_us + self.patch_size_us,
                         startIndex_depth_us:startIndex_depth_us + self.patch_size]  # .squeeze()
             else:
                 if self.patch_size != -1 and self.pre_interpolate is None:
-                    voxel = images_handler[:, startIndex_width:startIndex_width + self.patch_size,
+                    voxel = image_us[:, startIndex_width:startIndex_width + self.patch_size,
                             startIndex_length:startIndex_length + self.patch_size,
                             startIndex_depth:startIndex_depth + self.patch_size]  # .squeeze()
                 else:
-                    voxel = images_handler[...]
+                    voxel = image_us[...]
 
         target_slices = np.array(target_voxel).astype(
             np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW) TODO Now it is WXLXD
@@ -380,37 +372,12 @@ class SRDataset(Dataset):
             targetPatch = F.pad(targetPatch, pad[:6])
 
         if self.return_coords is True:
-            # return patch, targetPatch, np.array(start_coords), os.path.basename(self.data.iloc[index, 3]), np.array(
-            #     [(self.data.iloc[index, 4]), (self.data.iloc[index, 1])]), np.array(pad[::-1])
-            patch_image = torch.movedim(patch, -3, -1)
-            patch_image = torch.max(patch_image, -1)[0]
-            patch_image_MIP = torch.max(patch_image, 0)[0].detach().cpu().squeeze().numpy()
-            patch_label = torch.movedim(targetPatch, -3, -1)
-            patch_label = torch.max(patch_label, -1)[0]
-            patch_label_MIP = torch.max(patch_label, 0)[0].detach().cpu().squeeze().numpy()
-
-            # subject = tio.Subject(
-            #     img=patch,
-            #     label=targetPatch,
-            #     patch_image=Image.fromarray((patch_image_MIP * 255).astype('uint8'), 'L'),
-            #     patch_label=Image.fromarray((patch_label_MIP * 255).astype('uint8'), 'L'),
-            #     subjectname=os.path.basename(self.data.iloc[index, 3]),
-            #     start_coords=start_coords,
-            #     shape=np.array([(self.data.iloc[index, 4]), (self.data.iloc[index, 1])]),
-            #     padding=np.array(pad[::-1])
-            #
-            # )
-
+            trimmed_label_filename = (self.data.iloc[index, 3]).split("\\")
             subject = tio.Subject(
-                img=patch,
-                label=targetPatch,
-                patch_image=tio.ScalarImage(tensor=patch),
-                patch_label=tio.LabelMap(tensor=targetPatch > 0.5),
-                subjectname=os.path.basename(self.data.iloc[index, 3]),
-                start_coords=start_coords,
-                shape=np.array([(self.data.iloc[index, 4]), (self.data.iloc[index, 1])]),
-                padding=np.array(pad)
-
+                img=tio.ScalarImage(tensor=patch),
+                label=tio.LabelMap(tensor=targetPatch),
+                subjectname=trimmed_label_filename[len(trimmed_label_filename) - 1],
+                start_coords=start_coords
             )
             return subject
         else:

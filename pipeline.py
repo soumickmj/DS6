@@ -99,12 +99,12 @@ class Pipeline:
                 traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
                                                     label_path=self.DATASET_FOLDER + '/train_label/',
                                                     crossvalidation_set=training_set)
-                self.pre_loaded_train_lbl_data = traindataset.subjects_dataset.pre_loaded_lbl_data
+                self.pre_loaded_train_lbl_data = traindataset.subjects_dataset.pre_loaded_data['pre_loaded_lbl_data']
 
                 validationdataset, pre_loaded_validation_subjects = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
                                                          label_path=self.DATASET_FOLDER + '/validate_label/',
                                                          crossvalidation_set=validation_set, is_train=False, is_validate=True)
-                self.pre_loaded_validate_lbl_data = pre_loaded_validation_subjects.pre_loaded_lbl_data
+                self.pre_loaded_validate_lbl_data = pre_loaded_validation_subjects.pre_loaded_data['pre_loaded_lbl_data']
 
                 self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
                                                                 num_workers=self.num_worker, pin_memory=True)
@@ -130,7 +130,7 @@ class Pipeline:
             sampler = tio.data.UniformSampler(self.patch_size)
             patches_queue = tio.Queue(
                 trainDS,
-                max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_img)) * 2,
+                max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_data['pre_loaded_img'])) * 2,
                 samples_per_volume=1,
                 sampler=sampler,
                 num_workers=0,
@@ -221,8 +221,8 @@ class Pipeline:
             batch_index = 0
             for batch_index, patches_batch in enumerate(tqdm(self.train_loader)):
 
-                local_batch = self.normaliser(patches_batch['img'].float().cuda())
-                local_labels = patches_batch['label'].float().cuda()
+                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                local_labels = patches_batch['label'][tio.DATA].float().cuda()
 
                 local_batch = torch.movedim(local_batch, -1, -3)
                 local_labels = torch.movedim(local_labels, -1, -3)
@@ -266,15 +266,9 @@ class Pipeline:
 
                             # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
                             patch_subject_name = patches_batch['subjectname'][num_patches - 1]
-                            label_3d = self.pre_loaded_train_lbl_data[patch_subject_name]
-                            label_3d = torch.from_numpy(label_3d).float().cuda()
-                            patch_width_coord, patch_length_coord, patch_depth_coord = \
-                                patches_batch["start_coords"][0][0][
-                                    num_patches - 1], \
-                                patches_batch["start_coords"][0][1][
-                                    num_patches - 1], \
-                                patches_batch["start_coords"][0][2][
-                                    num_patches - 1]
+                            label_3d = [lbl for lbl in self.pre_loaded_train_lbl_data if lbl['subjectname'] == patch_subject_name][0]
+                            label_3d = torch.from_numpy(label_3d['data']).float().cuda()
+                            patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
 
                             true_mip = torch.amax(label_3d, -1)
                             true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
@@ -450,8 +444,8 @@ class Pipeline:
                 self.logger.info("loading" + str(index))
                 no_patches += 1
 
-                local_batch = self.normaliser(patches_batch['img'].float().cuda())
-                local_labels = patches_batch['label'].float().cuda()
+                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                local_labels = patches_batch['label'][tio.DATA].float().cuda()
 
                 local_batch = torch.movedim(local_batch, -1, -3)
                 local_labels = torch.movedim(local_labels, -1, -3)
@@ -477,15 +471,11 @@ class Pipeline:
 
                                 # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
                                 patch_subject_name = patches_batch['subjectname'][num_patches - 1]
-                                label_3d = self.pre_loaded_validate_lbl_data[patch_subject_name]
-                                label_3d = torch.from_numpy(label_3d).float().cuda()
+                                label_3d = [lbl for lbl in self.pre_loaded_validate_lbl_data if
+                                            lbl['subjectname'] == patch_subject_name][0]
+                                label_3d = torch.from_numpy(label_3d['data']).float().cuda()
                                 patch_width_coord, patch_length_coord, patch_depth_coord = \
-                                    patches_batch["start_coords"][0][0][
-                                        num_patches - 1], \
-                                    patches_batch["start_coords"][0][1][
-                                        num_patches - 1], \
-                                    patches_batch["start_coords"][0][2][
-                                        num_patches - 1]
+                                patches_batch["start_coords"][num_patches - 1][0]
 
                                 true_mip = torch.amax(label_3d, -1)
                                 true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
