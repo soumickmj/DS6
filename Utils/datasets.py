@@ -284,27 +284,27 @@ class SRDataset(Dataset):
 
         if self.patch_size != -1:
             if len(groundTruthImages.shape) == 4:  # don't know why, but an additional dim is noticed in some of the fully-sampled NIFTIs
-                target_voxel = groundTruthImages[:, startIndex_width:startIndex_width + self.patch_size,
+                targetPatch = groundTruthImages[:, startIndex_width:startIndex_width + self.patch_size,
                                startIndex_length:startIndex_length + self.patch_size,
                                startIndex_depth:startIndex_depth + self.patch_size]  # .squeeze()
             else:
-                target_voxel = groundTruthImages[startIndex_width:startIndex_width + self.patch_size,
+                targetPatch = groundTruthImages[startIndex_width:startIndex_width + self.patch_size,
                                startIndex_length:startIndex_length + self.patch_size,
                                startIndex_depth:startIndex_depth + self.patch_size]  # .squeeze()
         else:
             if len(groundTruthImages.shape) == 4:  # don't know why, but an additional dim is noticed in some of the fully-sampled NIFTIs
-                target_voxel = groundTruthImages[:, :, :, :]  # .squeeze()
+                targetPatch = groundTruthImages[:, :, :, :]  # .squeeze()
             else:
-                target_voxel = groundTruthImages[...]  # .squeeze()
+                targetPatch = groundTruthImages[...]  # .squeeze()
 
         if self.fly_under_percent is not None:
             if self.patch_size != -1:
-                voxel = abs(performUndersampling(np.array(target_voxel).copy(), mask=self.mask, zeropad=False))
-                voxel = voxel[..., ::2]  # 2 for 25% - harcoded. TODO fix it
+                patch = abs(performUndersampling(np.array(targetPatch).copy(), mask=self.mask, zeropad=False))
+                patch = patch[..., ::2]  # 2 for 25% - harcoded. TODO fix it
             else:
-                mask = createCenterRatioMask(target_voxel, self.fly_under_percent)
-                voxel = abs(performUndersampling(np.array(target_voxel).copy(), mask=mask, zeropad=False))
-                voxel = voxel[..., ::2]  # 2 for 25% - harcoded. TODO fix it
+                mask = createCenterRatioMask(targetPatch, self.fly_under_percent)
+                patch = abs(performUndersampling(np.array(targetPatch).copy(), mask=mask, zeropad=False))
+                patch = patch[..., ::2]  # 2 for 25% - harcoded. TODO fix it
         else:
             if self.pre_load:
                 image_us = [img for img in self.pre_loaded_data['pre_loaded_img'] if img['subjectname'] == self.data.iloc[index, 0]]
@@ -314,23 +314,23 @@ class SRDataset(Dataset):
 
             # images = nibabel.load(self.data.iloc[index, 0])
             if self.patch_size_us is not None:
-                voxel = image_us[:, startIndex_width_us:startIndex_width_us + self.patch_size_us,
+                patch = image_us[:, startIndex_width_us:startIndex_width_us + self.patch_size_us,
                         startIndex_length_us:startIndex_length_us + self.patch_size_us,
                         startIndex_depth_us:startIndex_depth_us + self.patch_size]  # .squeeze()
             else:
                 if self.patch_size != -1 and self.pre_interpolate is None:
-                    voxel = image_us[:, startIndex_width:startIndex_width + self.patch_size,
+                    patch = image_us[:, startIndex_width:startIndex_width + self.patch_size,
                             startIndex_length:startIndex_length + self.patch_size,
                             startIndex_depth:startIndex_depth + self.patch_size]  # .squeeze()
                 else:
-                    voxel = image_us[...]
+                    patch = image_us[...]
 
-        target_slices = np.array(target_voxel).astype(
-            np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW) TODO Now it is WXLXD
-        slices = np.array(voxel).astype(
-            np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW) TODO Now it is WXLXD
+        # target_slices = np.array(target_voxel).astype(
+        #     np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW) TODO Now it is WXLXD
+        # slices = np.array(voxel).astype(
+        #     np.float32)  # get slices in range, convert to array, change axis of depth (because nibabel gives LXWXD, but we need in DXLXW) TODO Now it is WXLXD
 
-        patch = torch.from_numpy(slices)
+        # patch = torch.from_numpy(voxel)
         # patch = patch/torch.max(patch)# normalisation
         if self.pre_interpolate:
             patch = F.interpolate(patch.unsqueeze(0).unsqueeze(0), size=tuple(np.roll(groundTruthImages.shape, 1)),
@@ -341,7 +341,7 @@ class SRDataset(Dataset):
         if self.norm_data:
             patch = patch / imageFile_max  # normalisation
 
-        targetPatch = torch.from_numpy(target_slices)
+        # targetPatch = torch.from_numpy(target_voxel)
         # targetPatch = targetPatch/torch.max(targetPatch)
         if self.norm_data:
             targetPatch = targetPatch / labelFile_max

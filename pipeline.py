@@ -99,7 +99,7 @@ class Pipeline:
                 traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
                                                     label_path=self.DATASET_FOLDER + '/train_label/',
                                                     crossvalidation_set=training_set)
-                self.pre_loaded_train_lbl_data = traindataset.subjects_dataset.pre_loaded_data['pre_loaded_lbl_data']
+                self.pre_loaded_train_lbl_data = traindataset.pre_loaded_data['pre_loaded_lbl_data']
 
                 validationdataset, pre_loaded_validation_subjects = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
                                                          label_path=self.DATASET_FOLDER + '/validate_label/',
@@ -127,16 +127,17 @@ class Pipeline:
                                 return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
             if get_subjects_only:
                 return trainDS
-            sampler = tio.data.UniformSampler(self.patch_size)
-            patches_queue = tio.Queue(
-                trainDS,
-                max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_data['pre_loaded_img'])) * 2,
-                samples_per_volume=1,
-                sampler=sampler,
-                num_workers=0,
-                start_background=True
-            )
-            return patches_queue
+            # sampler = tio.data.UniformSampler(self.patch_size)
+            # patches_queue = tio.Queue(
+            #     trainDS,
+            #     max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_data['pre_loaded_img'])) * 2,
+            #     samples_per_volume=1,
+            #     sampler=sampler,
+            #     num_workers=0,
+            #     start_background=True
+            # )
+            # return patches_queue
+            return trainDS
         elif is_validate:
             validationDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
                                 dir_path=self.DATASET_FOLDER + '/validate/',
