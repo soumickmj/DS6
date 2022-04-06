@@ -276,6 +276,14 @@ class Pipeline:
                                              patch_length_coord:patch_length_coord + self.patch_size]
                             predicted_patch_op = output[num_patches - 1]
                             predicted_patch_mip = torch.amax(predicted_patch_op, -1)
+                            pad = ()
+                            for dim in range(len(true_mip_patch.shape)):
+                                target_shape = true_mip_patch.shape[::-1]
+                                pad_needed = self.patch_size - target_shape[dim]
+                                pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
+                                pad += pad_dim
+
+                            true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6])
                             mip_loss += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
 
                             level += 1
@@ -483,6 +491,14 @@ class Pipeline:
                                                  patch_length_coord:patch_length_coord + self.patch_size]
                                 predicted_patch_op = output[num_patches - 1]
                                 predicted_patch_mip = torch.amax(predicted_patch_op, -1)
+                                pad = ()
+                                for dim in range(len(true_mip_patch.shape)):
+                                    target_shape = true_mip_patch.shape[::-1]
+                                    pad_needed = self.patch_size - target_shape[dim]
+                                    pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
+                                    pad += pad_dim
+
+                                true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6])
                                 mipLoss_iter += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip,
                                                                                            true_mip_patch)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
