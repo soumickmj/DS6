@@ -401,7 +401,7 @@ class Pipeline:
 
                 if self.deform:
                     del elastic
-                    torch.cuda.empty_cache()
+                torch.cuda.empty_cache()
 
             # Calculate the average loss per batch in one epoch
             total_floss /= (batch_index + 1.0)
