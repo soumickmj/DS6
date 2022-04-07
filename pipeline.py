@@ -122,7 +122,7 @@ class Pipeline:
                                 stride_depth=self.stride_depth, stride_length=self.stride_length,
                                 stride_width=self.stride_width, Size=None, fly_under_percent=None,
                                 # TODO: implement fly_under_percent, if needed
-                                patch_size_us=None, pre_interpolate=None, norm_data=False,
+                                patch_size_us=self.patch_size, pre_interpolate=None, norm_data=False,
                                 pre_load=True,
                                 return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
             if get_subjects_only:
@@ -146,7 +146,7 @@ class Pipeline:
                                 stride_depth=self.stride_depth, stride_length=self.stride_length,
                                 stride_width=self.stride_width, Size=None, fly_under_percent=None,
                                 # TODO: implement fly_under_percent, if needed
-                                patch_size_us=None, pre_interpolate=None, norm_data=False,
+                                patch_size_us=self.patch_size, pre_interpolate=None, norm_data=False,
                                 pre_load=True,
                                 return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
@@ -341,17 +341,7 @@ class Pipeline:
                     else:
                         floss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
 
-                # Compute total DiceLoss, DiceScore and IOU per batch
-                if (num_patches > 0):
-                    diceLoss_batch = diceLoss_batch / num_patches
-                    diceScore_batch = diceScore_batch / num_patches
-                    IOU_batch = IOU_batch / num_patches
-                    mip_loss = mip_loss / num_patches
-
-                total_DiceLoss += diceLoss_batch
-                total_DiceScore += diceScore_batch
-                total_IOU += IOU_batch
-                total_mipLoss += mip_loss
+                
 
                 # except Exception as error:
                 #     self.logger.exception(error)
@@ -359,8 +349,8 @@ class Pipeline:
 
                 self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + " Training..." +
                                  "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(
-                    total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(
-                    total_IOU) + " mipLoss: " + str(total_mipLoss))
+                    diceLoss_batch) + " diceScore: " + str(diceScore_batch) + " iou: " + str(
+                    IOU_batch) + " mipLoss: " + str(mip_loss))
 
                 # Calculating gradients
                 if self.with_apex:
@@ -392,11 +382,22 @@ class Pipeline:
                 if training_batch_index % 50 == 0:  # Save best metric evaluation weights
                     write_summary(self.writer_training, self.logger, training_batch_index,
                                   focalTverskyLoss=floss.detach().item(), mipLoss=mip_loss.detach().item(),
-                                  diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
+                                  diceLoss=diceLoss_batch, diceScore=diceScore_batch, iou=IOU_batch)
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
                 total_floss += floss.detach().item()
+                # Compute total DiceLoss, DiceScore and IOU per batch
+                if (num_patches > 0):
+                    diceLoss_batch = diceLoss_batch / num_patches
+                    diceScore_batch = diceScore_batch / num_patches
+                    IOU_batch = IOU_batch / num_patches
+                    mip_loss = mip_loss / num_patches
+
+                total_DiceLoss += diceLoss_batch
+                total_DiceScore += diceScore_batch
+                total_IOU += IOU_batch
+                total_mipLoss += mip_loss
 
                 if self.deform:
                     del elastic
