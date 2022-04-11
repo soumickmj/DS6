@@ -368,8 +368,8 @@ class SRDataset(Dataset):
                     pad_needed = real_patch_us - patch_shape[dim]
                     pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
                     pad_us += pad_dim
-            patch = F.pad(patch, pad_us[:6])  # tuple has to be reveresed before using it for padding. As the tuple contains in DHW manner, and input is needed as WHD mannger TODO input already in WXLXD
-            targetPatch = F.pad(targetPatch, pad[:6])
+            patch = F.pad(patch, pad_us[:6], value=np.finfo(np.float).eps)  # tuple has to be reveresed before using it for padding. As the tuple contains in DHW manner, and input is needed as WHD mannger TODO input already in WXLXD
+            targetPatch = F.pad(targetPatch, pad[:6], value=np.finfo(np.float).eps)
 
         if self.return_coords is True:
             trimmed_label_filename = (self.data.iloc[index, 3]).split("\\")

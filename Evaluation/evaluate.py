@@ -10,6 +10,7 @@ Purpose :
 import torch
 import torch.nn as nn
 import torch.utils.data
+import numpy as np
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -116,7 +117,7 @@ class MIP_Loss(nn.Module):
                 pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
                 pad += pad_dim
 
-            true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6])
+            true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
             mip_loss += loss_fn(predicted_patch_mip, true_mip_patch)
         mip_loss = mip_loss / (len(y_pred) + 0.0001)
         return mip_loss
