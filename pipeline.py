@@ -266,7 +266,7 @@ class Pipeline:
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
                             mip_loss_patch = 0
-                            for index, pred in enumerate(output):
+                            for index in range(len(output)):
                                 patch_subject_name = patches_batch['subjectname'][index]
                                 label_3d = [lbl for lbl in self.pre_loaded_train_lbl_data if lbl['subjectname'] == patch_subject_name][0]
                                 label_3d = torch.from_numpy(label_3d['data']).float().cuda()
@@ -275,7 +275,7 @@ class Pipeline:
                                 true_mip = torch.amax(label_3d, -1)
                                 true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
                                                 patch_length_coord:patch_length_coord + self.patch_size]
-                                predicted_patch_mip = torch.amax(pred, -1)
+                                predicted_patch_mip = torch.amax(output[index], -1)
                                 pad = ()
                                 for dim in range(len(true_mip_patch.shape)):
                                     target_shape = true_mip_patch.shape[::-1]
@@ -289,6 +289,7 @@ class Pipeline:
                             # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
 
                             level += 1
+                            torch.cuda.empty_cache()
                     else:
                         self.model.forward(local_batch, local_labels, training=True)
                         elbo = self.model.elbo(local_labels, analytic_kl=True)
@@ -483,7 +484,7 @@ class Pipeline:
 
                                 # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
                                 mip_loss_patch = 0
-                                for index, pred in enumerate(output):
+                                for index in range(len(output)):
                                     patch_subject_name = patches_batch['subjectname'][index]
                                     label_3d = [lbl for lbl in self.pre_loaded_validate_lbl_data if lbl['subjectname'] == patch_subject_name][0]
                                     label_3d = torch.from_numpy(label_3d['data']).float().cuda()
@@ -492,7 +493,7 @@ class Pipeline:
                                     true_mip = torch.amax(label_3d, -1)
                                     true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
                                                     patch_length_coord:patch_length_coord + self.patch_size]
-                                    predicted_patch_mip = torch.amax(pred, -1)
+                                    predicted_patch_mip = torch.amax(output[index], -1)
                                     pad = ()
                                     for dim in range(len(true_mip_patch.shape)):
                                         target_shape = true_mip_patch.shape[::-1]
@@ -506,6 +507,7 @@ class Pipeline:
                                 # mipLoss_iter += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_validate_lbl_data, self.focalTverskyLoss, self.patch_size)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
+                                torch.cuda.empty_cache()
                         else:
                             self.model.forward(local_batch, training=False)
                             output1 = torch.sigmoid(self.model.sample(testing=True))
