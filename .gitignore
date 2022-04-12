@@ -153,3 +153,6 @@ runner_gpu2.py
 runner_gpu3.py
 pipeline_mod.py
 main_executor_mod.py
+
+vcs.xml
+workspace.xml
