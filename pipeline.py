@@ -282,7 +282,8 @@ class Pipeline:
                                 pad += pad_dim
 
                             true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
-                            mip_loss += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+                            mip_loss_patch = loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+                            mip_loss += mip_loss_patch if not torch.any(torch.isnan(mip_loss_patch)) else np.finfo(np.float).eps
                             # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
 
                             level += 1
@@ -496,7 +497,8 @@ class Pipeline:
                                     pad += pad_dim
 
                                 true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
-                                mipLoss_iter += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+                                mipLoss_iter_patch = loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+                                mipLoss_iter += mipLoss_iter_patch if not torch.any(torch.isnan(mipLoss_iter_patch)) else np.finfo(np.float).eps
                                 # mipLoss_iter += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_validate_lbl_data, self.focalTverskyLoss, self.patch_size)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
