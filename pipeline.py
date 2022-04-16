@@ -193,7 +193,8 @@ class Pipeline:
 
     def normaliser(self, batch):
         for i in range(batch.shape[0]):
-            batch[i] = batch[i] / batch[i].max()
+            if batch[i].max() > 0.0:
+                batch[i] = batch[i] / batch[i].max()
         return batch
 
     def load(self, checkpoint_path=None, load_best=True):
@@ -265,25 +266,25 @@ class Pipeline:
                             IOU_batch += IOU_score.detach().item()
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
-                            patch_subject_name = patches_batch['subjectname'][num_patches - 1]
-                            label_3d = [lbl for lbl in self.pre_loaded_train_lbl_data if lbl['subjectname'] == patch_subject_name][0]
-                            label_3d = torch.from_numpy(label_3d['data']).float().cuda()
-                            patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
+                            if level == 2:
+                                patch_subject_name = patches_batch['subjectname'][num_patches - 1]
+                                label_3d = [lbl for lbl in self.pre_loaded_train_lbl_data if lbl['subjectname'] == patch_subject_name][0]
+                                label_3d = torch.from_numpy(label_3d['data']).float().cuda()
+                                patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
 
-                            true_mip = torch.amax(label_3d, -1)
-                            true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
-                                        patch_length_coord:patch_length_coord + self.patch_size]
-                            predicted_patch_mip = torch.amax(output[num_patches - 1], -1)
-                            pad = ()
-                            for dim in range(len(true_mip_patch.shape)):
-                                target_shape = true_mip_patch.shape[::-1]
-                                pad_needed = self.patch_size - target_shape[dim]
-                                pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
-                                pad += pad_dim
+                                true_mip = torch.amax(label_3d, -1)
+                                true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
+                                            patch_length_coord:patch_length_coord + self.patch_size]
+                                predicted_patch_mip = torch.amax(output[num_patches - 1], -1)
+                                pad = ()
+                                for dim in range(len(true_mip_patch.shape)):
+                                    target_shape = true_mip_patch.shape[::-1]
+                                    pad_needed = self.patch_size - target_shape[dim]
+                                    pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
+                                    pad += pad_dim
 
-                            true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
-                            mip_loss_patch = loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
-                            mip_loss += mip_loss_patch if not torch.any(torch.isnan(mip_loss_patch)) else np.finfo(np.float).eps
+                                true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
+                                mip_loss += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
                             # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
 
                             level += 1
@@ -480,25 +481,25 @@ class Pipeline:
                                 output = torch.sigmoid(output)
 
                                 # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
-                                patch_subject_name = patches_batch['subjectname'][num_patches - 1]
-                                label_3d = [lbl for lbl in self.pre_loaded_validate_lbl_data if lbl['subjectname'] == patch_subject_name][0]
-                                label_3d = torch.from_numpy(label_3d['data']).float().cuda()
-                                patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
+                                if level == 2:
+                                    patch_subject_name = patches_batch['subjectname'][num_patches - 1]
+                                    label_3d = [lbl for lbl in self.pre_loaded_validate_lbl_data if lbl['subjectname'] == patch_subject_name][0]
+                                    label_3d = torch.from_numpy(label_3d['data']).float().cuda()
+                                    patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
 
-                                true_mip = torch.amax(label_3d, -1)
-                                true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
+                                    true_mip = torch.amax(label_3d, -1)
+                                    true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
                                                 patch_length_coord:patch_length_coord + self.patch_size]
-                                predicted_patch_mip = torch.amax(output[num_patches - 1], -1)
-                                pad = ()
-                                for dim in range(len(true_mip_patch.shape)):
-                                    target_shape = true_mip_patch.shape[::-1]
-                                    pad_needed = self.patch_size - target_shape[dim]
-                                    pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
-                                    pad += pad_dim
+                                    predicted_patch_mip = torch.amax(output[num_patches - 1], -1)
+                                    pad = ()
+                                    for dim in range(len(true_mip_patch.shape)):
+                                        target_shape = true_mip_patch.shape[::-1]
+                                        pad_needed = self.patch_size - target_shape[dim]
+                                        pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
+                                        pad += pad_dim
 
-                                true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
-                                mipLoss_iter_patch = loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
-                                mipLoss_iter += mipLoss_iter_patch if not torch.any(torch.isnan(mipLoss_iter_patch)) else np.finfo(np.float).eps
+                                    true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
+                                    mipLoss_iter += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
                                 # mipLoss_iter += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_validate_lbl_data, self.focalTverskyLoss, self.patch_size)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
