@@ -266,7 +266,7 @@ class Pipeline:
                             IOU_batch += IOU_score.detach().item()
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
-                            if level == 2:
+                            if level == 0:
                                 patch_subject_name = patches_batch['subjectname'][num_patches - 1]
                                 label_3d = [lbl for lbl in self.pre_loaded_train_lbl_data if lbl['subjectname'] == patch_subject_name][0]
                                 label_3d = torch.from_numpy(label_3d['data']).float().cuda()
