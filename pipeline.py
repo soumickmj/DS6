@@ -99,13 +99,9 @@ class Pipeline:
                 traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
                                                     label_path=self.DATASET_FOLDER + '/train_label/',
                                                     crossvalidation_set=training_set)
-                self.pre_loaded_train_lbl_data = traindataset.pre_loaded_data['pre_loaded_lbl_data']
-
-                validationdataset, pre_loaded_validation_subjects = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
+                validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
                                                          label_path=self.DATASET_FOLDER + '/validate_label/',
                                                          crossvalidation_set=validation_set, is_train=False, is_validate=True)
-                self.pre_loaded_validate_lbl_data = pre_loaded_validation_subjects.pre_loaded_data['pre_loaded_lbl_data']
-
                 self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
                                                                 num_workers=self.num_worker, pin_memory=True)
                 self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
@@ -158,7 +154,7 @@ class Pipeline:
                     overlap,
                 )
                 grid_samplers.append(grid_sampler)
-            return (torch.utils.data.ConcatDataset(grid_samplers), validationDS)
+            return torch.utils.data.ConcatDataset(grid_samplers)
         else:
             vols = glob(vol_path + "*.nii") + glob(vol_path + "*.nii.gz")
             labels = glob(label_path + "*.nii") + glob(label_path + "*.nii.gz")
@@ -179,7 +175,7 @@ class Pipeline:
 
             if get_subjects_only:
                 return subjects
-            
+
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
             grid_samplers = []
             for i in range(len(subjects)):
@@ -246,18 +242,16 @@ class Pipeline:
                     diceLoss_batch = 0
                     diceScore_batch = 0
                     IOU_batch = 0
-                    num_patches = 0
 
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
                     if not self.isProb:
                         # Compute DiceLoss using batch labels
                         for output in self.model(local_batch):
-                            num_patches += 1
                             if level == 0:
                                 output1 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                                output = torch.nn.functional.interpolate(input=output, size=(32, 32, 32))
                             output = torch.sigmoid(output)
                             dl_batch, ds_batch = self.dice(output, local_labels)
                             IOU_score = self.iou(output, local_labels)
@@ -266,25 +260,14 @@ class Pipeline:
                             IOU_batch += IOU_score.detach().item()
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
-                            if level == 0:
-                                patch_subject_name = patches_batch['subjectname'][num_patches - 1]
-                                label_3d = [lbl for lbl in self.pre_loaded_train_lbl_data if lbl['subjectname'] == patch_subject_name][0]
-                                label_3d = torch.from_numpy(label_3d['data']).float().cuda()
-                                patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
-
-                                true_mip = torch.amax(label_3d, -1)
-                                true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
-                                            patch_length_coord:patch_length_coord + self.patch_size]
-                                predicted_patch_mip = torch.amax(output[num_patches - 1], -1)
-                                pad = ()
-                                for dim in range(len(true_mip_patch.shape)):
-                                    target_shape = true_mip_patch.shape[::-1]
-                                    pad_needed = self.patch_size - target_shape[dim]
-                                    pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
-                                    pad += pad_dim
-
-                                true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
-                                mip_loss += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+                            mip_loss_patch = 0
+                            num_patches = 0
+                            for index, op in enumerate(output):
+                                op_mip = torch.amax(op, -1)
+                                mip_loss_patch += loss_ratios[level] * self.focalTverskyLoss(op_mip,
+                                                  patches_batch['ground_truth_mip_patch'][index].float().cuda())
+                            mip_loss += mip_loss_patch / len(op) if not torch.isnan(mip_loss_patch / len(op)) \
+                                else torch.tensor(0).float().cuda()
                             # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
 
                             level += 1
@@ -340,9 +323,9 @@ class Pipeline:
                         floss = floss + floss2 + floss_c
 
                     else:
-                        floss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
+                        floss = floss + (self.mip_loss_coeff * mip_loss)
 
-                
+
 
                 # except Exception as error:
                 #     self.logger.exception(error)
@@ -469,11 +452,9 @@ class Pipeline:
                         # Forward propagation
                         loss_ratios = [1, 0.66, 0.34]  # TODO param
                         level = 0
-                        num_patches = 0
                         # Forward propagation
                         if not self.isProb:
                             for output in self.model(local_batch):
-                                num_patches += 1
                                 if level == 0:
                                     output1 = output
                                 if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
@@ -481,25 +462,13 @@ class Pipeline:
                                 output = torch.sigmoid(output)
 
                                 # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
-                                if level == 2:
-                                    patch_subject_name = patches_batch['subjectname'][num_patches - 1]
-                                    label_3d = [lbl for lbl in self.pre_loaded_validate_lbl_data if lbl['subjectname'] == patch_subject_name][0]
-                                    label_3d = torch.from_numpy(label_3d['data']).float().cuda()
-                                    patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][num_patches - 1][0]
-
-                                    true_mip = torch.amax(label_3d, -1)
-                                    true_mip_patch = true_mip[patch_width_coord:patch_width_coord + self.patch_size,
-                                                patch_length_coord:patch_length_coord + self.patch_size]
-                                    predicted_patch_mip = torch.amax(output[num_patches - 1], -1)
-                                    pad = ()
-                                    for dim in range(len(true_mip_patch.shape)):
-                                        target_shape = true_mip_patch.shape[::-1]
-                                        pad_needed = self.patch_size - target_shape[dim]
-                                        pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
-                                        pad += pad_dim
-
-                                    true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
-                                    mipLoss_iter += loss_ratios[level] * self.focalTverskyLoss(predicted_patch_mip, true_mip_patch)
+                                mip_loss_patch = 0
+                                for idx, op in enumerate(output):
+                                    op_mip = torch.amax(op, -1)
+                                    mip_loss_patch += loss_ratios[level] * self.focalTverskyLoss(op_mip,
+                                                      patches_batch['ground_truth_mip_patch'][idx].float().cuda())
+                                mipLoss_iter += mip_loss_patch / len(op) if not torch.isnan(mip_loss_patch / len(op)) \
+                                    else torch.tensor(0).float().cuda()
                                 # mipLoss_iter += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_validate_lbl_data, self.focalTverskyLoss, self.patch_size)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
