@@ -251,7 +251,7 @@ class Pipeline:
                             if level == 0:
                                 output1 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=(32, 32, 32))
+                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
                             output = torch.sigmoid(output)
                             dl_batch, ds_batch = self.dice(output, local_labels)
                             IOU_score = self.iou(output, local_labels)
