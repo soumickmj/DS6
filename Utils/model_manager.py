@@ -22,11 +22,11 @@ MODEL_UNET_DEEPSUP = 2
 MODEL_ATTENTION_UNET = 3
 MODEL_PROBABILISTIC_UNET = 4
 
-def getModel(model_no): #Send model params from outside
+def getModel(model_no, output_dir=None): #Send model params from outside
     defaultModel = U_Net() #Default
     model_list = {
         1: U_Net(),
-        2: U_Net_DeepSup(), 
+        2: U_Net_DeepSup(output_dir=output_dir),
         3: AttU_Net(),
         4: ProbabilisticUnet(num_filters=[32,64,128,192])
         # 4: ProbabilisticUnet(num_filters=[64,128,256,512,1024])

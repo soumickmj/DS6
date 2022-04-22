@@ -11,6 +11,7 @@ Purpose :
 import torch
 import torch.nn as nn
 import torch.utils.data
+import os
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -174,9 +175,10 @@ class U_Net_DeepSup(nn.Module):
     Paper : https://arxiv.org/abs/1505.04597
     """
 
-    def __init__(self, in_ch=1, out_ch=1):
+    def __init__(self, in_ch=1, out_ch=1, output_dir=None):
         super(U_Net_DeepSup, self).__init__()
 
+        self.output_dir = output_dir
         n1 = 64
         filters = [n1, n1 * 2, n1 * 4, n1 * 8, n1 * 16]  # 64,128,256,512,1024
 
@@ -221,7 +223,10 @@ class U_Net_DeepSup(nn.Module):
             nan_mask = torch.isnan(out)
             if nan_mask.any():
                 print("In", self.__class__.__name__)
-                torch.save(inp, '/nfs1/sutrave/outputs/nan_values_input/inp_2_Nov.pt')
+                torch.save(inp, os.path.join(self.output_dir, 'nan_values_ip.pt'))
+                module_params = module.named_parameters()
+                for name, param in module_params:
+                    torch.save(param, os.path.join(self.output_dir, 'nan_{}_param.pt'.format(name)))
                 raise RuntimeError(" classname "+self.__class__.__name__+"i "+str(i)+f" module: {module} classname {self.__class__.__name__} Found NAN in output {i} at indices: ", nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
     def forward(self, x):

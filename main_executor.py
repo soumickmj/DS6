@@ -159,7 +159,7 @@ if __name__ == '__main__':
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
     # Model
-    model = getModel(args.model)
+    model = getModel(args.model, OUTPUT_PATH + "/" + MODEL_NAME)
     model.cuda()
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
