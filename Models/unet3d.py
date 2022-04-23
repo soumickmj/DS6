@@ -227,13 +227,14 @@ class U_Net_DeepSup(nn.Module):
                 module_params = module.named_parameters()
                 for name, param in module_params:
                     torch.save(param, os.path.join(self.output_dir, 'nan_{}_param.pt'.format(name)))
+                torch.save(self.input_to_net, os.path.join(self.output_dir, 'nan_ip_batch.pt'))
                 raise RuntimeError(" classname "+self.__class__.__name__+"i "+str(i)+f" module: {module} classname {self.__class__.__name__} Found NAN in output {i} at indices: ", nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
     def forward(self, x):
         # print("unet")
         # print(x.shape)
         # print(padded.shape)
-
+        self.input_to_net = x
         e1 = self.Conv1(x)
         # print("conv1:")
         # print(e1.shape)
