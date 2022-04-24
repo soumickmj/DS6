@@ -33,11 +33,11 @@ class conv_block(nn.Module):
             nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.PReLU(init=0.25),
+            nn.LeakyReLU(inplace=True),
             nn.Conv3d(in_channels=out_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.PReLU(init=0.25),
+            nn.LeakyReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -58,7 +58,7 @@ class up_conv(nn.Module):
             nn.Conv3d(in_channels=in_channels, out_channels=out_channels, kernel_size=k_size,
                       stride=stride, padding=padding, bias=bias),
             nn.BatchNorm3d(num_features=out_channels),
-            nn.PReLU(init=0.25))
+            nn.LeakyReLU(inplace=True))
 
     def forward(self, x):
         x = self.up(x)
