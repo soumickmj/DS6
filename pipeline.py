@@ -350,7 +350,7 @@ class Pipeline:
 
                     if self.clip_grads:
                         self.scaler.unscale_(self.optimizer)
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.75)
                         # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
                     self.scaler.step(self.optimizer)
@@ -358,7 +358,7 @@ class Pipeline:
                 else:
                     floss.backward()
                     if self.clip_grads:
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.75)
                         # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
                     self.optimizer.step()
