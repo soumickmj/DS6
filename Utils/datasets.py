@@ -37,7 +37,7 @@ seed(2020)
 class SRDataset(Dataset):
 
     def __init__(self, logger, patch_size, dir_path, label_dir_path, stride_depth=16, stride_length=32, stride_width=32,
-                 Size=4000, fly_under_percent=None, patch_size_us=None, return_coords=False, pad_patch=True,
+                 Size=None, fly_under_percent=None, patch_size_us=None, return_coords=False, pad_patch=True,
                  pre_interpolate=None, norm_data=True, pre_load=False):
         self.patch_size = patch_size  # -1 = full vol
         self.stride_depth = stride_depth
