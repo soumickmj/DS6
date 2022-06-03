@@ -638,7 +638,7 @@ class Pipeline:
             test_folder_path = self.DATASET_FOLDER + '/test/'
             test_label_path = self.DATASET_FOLDER + '/test_label/'
 
-            test_subjects = self.create_TIOSubDS(vol_path=test_folder_path, label_path=test_label_path,
+            test_subjects = self.create_TIOSubDS(vol_path=test_folder_path, is_train=False, label_path=test_label_path,
                                                  get_subjects_only=True)
 
         overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
