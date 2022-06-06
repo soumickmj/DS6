@@ -237,8 +237,8 @@ class Pipeline:
                 with autocast(enabled=self.with_apex):
                     loss_ratios = [1, 0.66, 0.34]  # TODO param
 
-                    floss = 0
-                    mip_loss = 0
+                    floss = torch.tensor(0).float().cuda()
+                    mip_loss = torch.tensor(0).float().cuda()
                     output1 = 0
                     level = 0
                     diceLoss_batch = 0
