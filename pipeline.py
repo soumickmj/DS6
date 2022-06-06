@@ -325,7 +325,7 @@ class Pipeline:
                         floss = floss + floss2 + floss_c
 
                     else:
-                        floss = floss + (self.mip_loss_coeff * mip_loss)
+                        floss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
 
 
 

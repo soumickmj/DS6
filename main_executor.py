@@ -131,7 +131,7 @@ if __name__ == '__main__':
                         help="Number of worker threads")
     parser.add_argument("-floss_coeff",
                         type=float,
-                        default=0.5,
+                        default=1.0,
                         help="Loss coefficient for floss in total loss")
     parser.add_argument("-mip_loss_coeff",
                         type=float,
@@ -181,7 +181,10 @@ if __name__ == '__main__':
 
     if args.test:
         if args.load_best:
-            pipeline.load(load_best=True)
+            if bool(LOAD_PATH):
+                pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
+            else:
+                pipeline.load(load_best=args.load_best)
         pipeline.test(test_logger=test_logger)
         torch.cuda.empty_cache()  # to avoid memory errors
 
