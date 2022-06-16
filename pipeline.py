@@ -358,7 +358,10 @@ class Pipeline:
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 else:
-                    floss.backward()
+                    if not torch.any(torch.isnan(floss)):
+                        floss.backward()
+                    else:
+                        self.logger.info("nan found in floss.... no backpropagation!!")
                     if self.clip_grads:
                         torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.75)
                         # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
