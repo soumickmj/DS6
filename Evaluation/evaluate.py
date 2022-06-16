@@ -75,17 +75,16 @@ class FocalTverskyLoss(nn.Module):
         return pow(abs(1 - pt_1), self.gamma)
 
     def nan_hook(self, module, inp, output):
-        for i, out in enumerate(output):
-            nan_mask = torch.isnan(out)
-            if nan_mask.any():
-                print("In", self.__class__.__name__)
-                torch.save(inp, os.path.join(self.output_dir, 'nan_floss_ip.pt'))
-                module_params = module.named_parameters()
-                for name, param in module_params:
-                    torch.save(param, os.path.join(self.output_dir, 'nan_floss_{}_param.pt'.format(name)))
-                raise RuntimeError(" classname " + self.__class__.__name__ + "i " + str(
-                    i) + f" module: {module} classname {self.__class__.__name__} Found NAN in output {i} at indices: ",
-                                   nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
+        nan_mask = torch.isnan(output)
+        if nan_mask.any():
+            print("In", self.__class__.__name__)
+            torch.save(inp, os.path.join(self.output_dir, 'nan_floss_ip.pt'))
+            module_params = module.named_parameters()
+            for name, param in module_params:
+                torch.save(param, os.path.join(self.output_dir, 'nan_floss_{}_param.pt'.format(name)))
+            raise RuntimeError(" classname " + self.__class__.__name__ + "i " + str(
+                i) + f" module: {module} classname {self.__class__.__name__} Found NAN in output {i} at indices: ",
+                               nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
 
 class FocalTverskyLoss_detailed(nn.Module):
