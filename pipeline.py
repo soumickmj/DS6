@@ -524,115 +524,49 @@ class Pipeline:
                 'optimizer': self.optimizer.state_dict(),
                 'amp': self.scaler.state_dict()})
 
-    def test_with_MIP(self, test_logger, save_results=True, test_subjects=None):
-        test_logger.debug('Testing...')
+    def test_with_MIP(self, test_logger):
+        test_logger.debug('Testing With MIP...')
 
-        if test_subjects is None:
-            test_folder_path = self.DATASET_FOLDER + '/test/'
-            test_label_path = self.DATASET_FOLDER + '/test_label/'
-
-            test_subjects = self.create_TIOSubDS(vol_path=test_folder_path, label_path=test_label_path,
-                                                 get_subjects_only=True)
-
-        overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
+        test_folder_path = self.DATASET_FOLDER + '/test_mip/'
+        test_label_path = self.DATASET_FOLDER + '/test_label_mip/'
+        test_DS = self.create_TIOSubDS(vol_path=test_folder_path, label_path=test_label_path,
+                                             get_subjects_only=False, is_train=True)
+        sampler = torch.utils.data.RandomSampler(data_source=test_DS, replacement=True,
+                                                 num_samples=self.samples_per_epoch)
+        test_loader = torch.utils.data.DataLoader(test_DS, batch_size=self.batch_size, shuffle=False,
+                                                            num_workers=self.num_worker, pin_memory=True,
+                                                            sampler=sampler)
 
         df = pd.DataFrame(columns=["Subject", "Dice", "IoU"])
         result_root = os.path.join(self.output_path, self.model_name, "results")
         os.makedirs(result_root, exist_ok=True)
 
         self.model.eval()
-
         with torch.no_grad():
-            for test_subject in test_subjects:
-                label_MIP = None
-                if 'label' in test_subject:
-                    label_MIP = test_subject['label'][tio.DATA].float().cuda()
-                    label = test_subject['label'][tio.DATA].float().squeeze().numpy()
-                    del test_subject['label']
-                else:
-                    label_MIP = None
-                    label = None
-                subjectname = test_subject['subjectname']
-                del test_subject['subjectname']
+            for index, patches_batch in enumerate(tqdm(test_loader)):
+                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                local_labels = patches_batch['label'][tio.DATA].float().cuda()
 
-                grid_sampler = tio.inference.GridSampler(
-                    test_subject,
-                    self.patch_size,
-                    overlap,
-                )
-                aggregator = tio.inference.GridAggregator(grid_sampler, overlap_mode="average")
-                patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.batch_size, shuffle=False,
-                                                           num_workers=self.num_worker)
+                local_batch = torch.movedim(local_batch, -1, -3)
+                local_labels = torch.movedim(local_labels, -1, -3)
 
-                for index, patches_batch in enumerate(tqdm(patch_loader)):
-                    local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
-                    locations = patches_batch[tio.LOCATION]
-
-                    local_batch = torch.movedim(local_batch, -1, -3)
-
-                    with autocast(enabled=self.with_apex):
-                        if not self.isProb:
-                            output = self.model(local_batch)
-                            if type(output) is tuple or type(output) is list:
-                                output = output[0]
-                            output = torch.sigmoid(output).detach().cpu()
-                        else:
-                            self.model.forward(local_batch, training=False)
-                            output = self.model.sample(
-                                testing=True).detach().cpu()  # TODO: need to check whether sigmoid is needed for prob
-
-                    output = torch.movedim(output, -3, -1).type(local_batch.type())
-                    aggregator.add_batch(output, locations)
-
-                predicted_tensor = aggregator.get_output_tensor().cuda()
-                predicted = aggregator.get_output_tensor().squeeze().numpy()
-
-                try:
-                    thresh = threshold_otsu(predicted)
-                    result = predicted > thresh
-                except Exception as error:
-                    test_logger.exception(error)
-                    result = predicted > 0.5  # exception will be thrown only if input image seems to have just one color 1.0.
-                result = result.astype(np.float32)
-
-                if label is not None:
-                    mip_loss = self.mip_loss(predicted_tensor, label_MIP)
-                    datum = {"Subject": subjectname}
-                    dice3D = dice(result, label)
-                    iou3D = IoU(result, label)
-                    datum = pd.DataFrame.from_dict({**datum, "Dice": [dice3D], "IoU": [iou3D], "mip_loss": [mip_loss]})
-                    df = pd.concat([df, datum], ignore_index=True)
-
-                if save_results:
-                    save_nifti(result, os.path.join(result_root, subjectname + ".nii.gz"))
-
-                    resultMIP = np.max(result, axis=-1)
-                    Image.fromarray((resultMIP * 255).astype('uint8'), 'L').save(
-                        os.path.join(result_root, subjectname + "_MIP.tif"))
-
-                    predicted_mip = torch.max(predicted_tensor, -1)[0].detach().cpu().squeeze().numpy()
-                    Image.fromarray((predicted_mip * 255).astype('uint8'), 'L').save(
-                        os.path.join(result_root, subjectname + "_Predicted_MIP.tif"))
-
-                    if label is not None:
-
-                        true_MIP = torch.max(label_MIP, -1)[0].detach().cpu().squeeze().numpy()
-                        Image.fromarray((true_MIP * 255).astype('uint8'), 'L').save(
-                        os.path.join(result_root, subjectname + "_True_MIP.tif"))
-
-                        overlay = create_diff_mask_binary(result, label)
-                        save_tifRGB(overlay, os.path.join(result_root, subjectname + "_colour.tif"))
-
-                        overlayMIP = create_diff_mask_binary(resultMIP, np.max(label, axis=-1))
-                        Image.fromarray(overlayMIP.astype('uint8'), 'RGB').save(
-                            os.path.join(result_root, subjectname + "_colourMIP.tif"))
-
-                test_logger.info("Testing " + subjectname + "..." +
-                                 "\n Dice:" + str(dice3D) +
-                                 "\n JacardIndex:" + str(iou3D) +
-                                 "\n Mip Loss: " + str(mip_loss))
-
-        df.to_excel(os.path.join(result_root, "Results_Main.xlsx"))
+                with autocast(enabled=self.with_apex):
+                    floss = 0
+                    mip_loss = 0
+                    output = self.model(local_batch)
+                    if type(output) is tuple or type(output) is list:
+                        output = output[0]
+                    output = torch.sigmoid(output)
+                    floss += self.focalTverskyLoss(output, local_labels)
+                    op_mip = torch.amax(output[0], -1)
+                    true_mip = patches_batch['ground_truth_mip_patch'][0].float().cuda()
+                    mip_loss += self.focalTverskyLoss(op_mip, true_mip)
+                    op_mip = op_mip.detach().cpu().squeeze().numpy()
+                    true_mip = true_mip.detach().cpu().squeeze().numpy()
+                    Image.fromarray((op_mip * 255).astype('uint8'), 'L').save(
+                        os.path.join(result_root, subjectname + "patch_{}_op_mip.tif".format(index)))
+                    Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
+                        os.path.join(result_root, subjectname + "patch_{}_true_mip.tif".format(index)))
 
     def test(self, test_logger, save_results=True, test_subjects=None):
         test_logger.debug('Testing...')
