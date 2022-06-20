@@ -396,7 +396,7 @@ class SRDataset(Dataset):
             subject = tio.Subject(
                 img=tio.ScalarImage(tensor=patch),
                 label=tio.LabelMap(tensor=targetPatch),
-                subjectname=trimmed_label_filename[len(trimmed_label_filename) - 1],
+                subjectname=trimmed_label_filename.split(".")[0],
                 ground_truth_mip_patch=ground_truth_mip_patch,
                 start_coords=start_coords
             )

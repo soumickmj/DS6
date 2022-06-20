@@ -64,6 +64,9 @@ if __name__ == '__main__':
     parser.add_argument('-test_with_mip',
                         default=False,
                         help="To test the model with MIP")
+    parser.add_argument('-pseudo_train',
+                        default=False,
+                        help="To test the model with MIP")
     parser.add_argument('-predict',
                         default=False,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
@@ -195,6 +198,15 @@ if __name__ == '__main__':
             else:
                 pipeline.load(load_best=args.load_best)
         pipeline.test_with_MIP(test_logger=test_logger)
+        torch.cuda.empty_cache()  # to avoid memory errors
+
+    if args.pseudo_train:
+        if args.load_best:
+            if bool(LOAD_PATH):
+                pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
+            else:
+                pipeline.load(load_best=args.load_best)
+        pipeline.pseudo_train(test_logger=test_logger)
         torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.predict:

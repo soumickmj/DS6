@@ -524,6 +524,84 @@ class Pipeline:
                 'optimizer': self.optimizer.state_dict(),
                 'amp': self.scaler.state_dict()})
 
+    def pseudo_train(self, test_logger):
+        test_logger.debug('Testing With MIP...')
+
+        training_batch_index = 0
+        for epoch in range(self.num_epochs):
+            print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
+            self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
+            total_floss = 0
+            total_mipLoss = 0
+            total_DiceLoss = 0
+            total_IOU = 0
+            total_DiceScore = 0
+            batch_index = 0
+            for batch_index, patches_batch in enumerate(tqdm(self.train_loader)):
+
+                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                local_labels = patches_batch['label'][tio.DATA].float().cuda()
+
+                local_batch = torch.movedim(local_batch, -1, -3)
+                local_labels = torch.movedim(local_labels, -1, -3)
+
+                # Transfer to GPU
+                self.logger.debug('Epoch: {} Batch Index: {}'.format(epoch, batch_index))
+
+                # Clear gradients
+                self.optimizer.zero_grad()
+
+                # try:
+                with autocast(enabled=self.with_apex):
+                    loss_ratios = [1, 0.66, 0.34]  # TODO param
+
+                    floss = torch.tensor(0.001).float().cuda()
+                    mip_loss = torch.tensor(0.001).float().cuda()
+                    output1 = 0
+                    level = 0
+                    diceLoss_batch = 0
+                    diceScore_batch = 0
+                    IOU_batch = 0
+
+                    # -------------------------------------------------------------------------------------------------
+                    # First Branch Supervised error
+                    if not self.isProb:
+                        # Compute DiceLoss using batch labels
+                        for output in self.model(local_batch):
+                            if level == 0:
+                                output1 = output
+                            if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                            output = torch.sigmoid(output)
+                            dl_batch, ds_batch = self.dice(output, local_labels)
+                            IOU_score = self.iou(output, local_labels)
+                            diceLoss_batch += dl_batch.detach().item()
+                            diceScore_batch += ds_batch.detach().item()
+                            IOU_batch += IOU_score.detach().item()
+                            floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
+                            # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
+                            mip_loss_patch = torch.tensor(0.001).float().cuda()
+                            num_patches = 0
+                            for index, op in enumerate(output):
+                                op_mip = torch.amax(op, 1)
+                                true_mip = patches_batch['ground_truth_mip_patch'][index].float().cuda()
+                                mip_loss_patch += self.focalTverskyLoss(op_mip, true_mip)
+                                op_mip = op_mip.detach().cpu().squeeze().numpy()
+                                true_mip = true_mip.detach().cpu().squeeze().numpy()
+                                Image.fromarray((op_mip * 255).astype('uint8'), 'L').save(
+                                    os.path.join(result_root, subjectname + "patch_" + str(index) + "_op_mip.tif"))
+                                Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
+                                    os.path.join(result_root, subjectname + "patch_" + str(index) + "_true_mip.tif"))
+                                test_logger.info("Testing " + subjectname + " with mip..." +
+                                                 "\n floss:" + str(floss) +
+                                                 "\n mip_loss:" + str(mip_loss_patch))
+                            if not torch.any(torch.isnan(mip_loss_patch)):
+                                mip_loss += mip_loss_patch / len(output)
+
+                    test_logger.info("Testing " + subjectname + " with mip..." +
+                                     "\n Average mip_loss:" + str(mip_loss))
+                break
+
     def test_with_MIP(self, test_logger):
         test_logger.debug('Testing With MIP...')
 
