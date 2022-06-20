@@ -560,6 +560,7 @@ class Pipeline:
                     floss += self.focalTverskyLoss(output, local_labels)
                     op_mip = torch.amax(output[0], -1)
                     true_mip = patches_batch['ground_truth_mip_patch'][0].float().cuda()
+                    subjectname = patches_batch['subjectname'][0]
                     mip_loss += self.focalTverskyLoss(op_mip, true_mip)
                     op_mip = op_mip.detach().cpu().squeeze().numpy()
                     true_mip = true_mip.detach().cpu().squeeze().numpy()
