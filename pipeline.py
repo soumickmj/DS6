@@ -266,7 +266,7 @@ class Pipeline:
                             num_patches = 0
                             for index, op in enumerate(output):
                                 op_mip = torch.amax(op, 1)
-                                mip_loss_patch += self.focalTverskyLoss(op_mip,
+                                mip_loss_patch += loss_ratios[level] * self.focalTverskyLoss(op_mip,
                                                   patches_batch['ground_truth_mip_patch'][index].float().cuda())
                             if not torch.any(torch.isnan(mip_loss_patch)):
                                 mip_loss += mip_loss_patch / len(output)
