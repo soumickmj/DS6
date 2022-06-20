@@ -558,7 +558,7 @@ class Pipeline:
                         output = output[0]
                     output = torch.sigmoid(output)
                     floss += self.focalTverskyLoss(output, local_labels)
-                    op_mip = torch.amax(output[0], -1)
+                    op_mip = torch.amax(output[0], 1)
                     true_mip = patches_batch['ground_truth_mip_patch'][0].float().cuda()
                     subjectname = patches_batch['subjectname'][0]
                     mip_loss += self.focalTverskyLoss(op_mip, true_mip)
