@@ -593,19 +593,18 @@ class Pipeline:
                                 mip_loss_patch += self.focalTverskyLoss(op_mip, true_mip)
                                 op_mip = op_mip.detach().cpu().squeeze().numpy()
                                 true_mip = true_mip.detach().cpu().squeeze().numpy()
-                                subjectname = patches_batch['subjectname'][index]
                                 Image.fromarray((op_mip * 255).astype('uint8'), 'L').save(
-                                    os.path.join(result_root, subjectname + "patch_" + str(index) + "_op_mip.tif"))
+                                    os.path.join(result_root, "level_" + str(level) + "_patch_" + str(index) + "_op_mip.tif"))
                                 Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
-                                    os.path.join(result_root, subjectname + "patch_" + str(index) + "_true_mip.tif"))
-                                test_logger.info("Testing " + subjectname + " with mip..." +
+                                    os.path.join(result_root, "level_" + str(level) + "_patch_" + str(index) + "_true_mip.tif"))
+                                test_logger.info("Testing with mip..." +
                                                  "\n floss:" + str(floss) +
                                                  "\n mip_loss:" + str(mip_loss_patch))
                             if not torch.any(torch.isnan(mip_loss_patch)):
                                 mip_loss += mip_loss_patch / len(output)
                             level += 1
 
-                    test_logger.info("Testing " + subjectname + " with mip..." +
+                    test_logger.info("Testing with mip..." +
                                      "\n Average mip_loss:" + str(mip_loss))
                 break
 
