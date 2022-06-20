@@ -534,6 +534,8 @@ class Pipeline:
         self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=False,
                                                         num_workers=self.num_worker, pin_memory=True,
                                                         sampler=sampler)
+        result_root = os.path.join(self.output_path, self.model_name, "results")
+        os.makedirs(result_root, exist_ok=True)
         training_batch_index = 0
         for epoch in range(self.num_epochs):
             print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
