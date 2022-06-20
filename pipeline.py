@@ -603,6 +603,7 @@ class Pipeline:
                                                  "\n mip_loss:" + str(mip_loss_patch))
                             if not torch.any(torch.isnan(mip_loss_patch)):
                                 mip_loss += mip_loss_patch / len(output)
+                            level += 1
 
                     test_logger.info("Testing " + subjectname + " with mip..." +
                                      "\n Average mip_loss:" + str(mip_loss))
