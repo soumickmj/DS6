@@ -527,6 +527,13 @@ class Pipeline:
     def pseudo_train(self, test_logger):
         test_logger.debug('Testing With MIP...')
 
+        traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
+                                            label_path=self.DATASET_FOLDER + '/train_label/')
+        sampler = torch.utils.data.RandomSampler(data_source=traindataset, replacement=True,
+                                                 num_samples=self.samples_per_epoch)
+        self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=False,
+                                                        num_workers=self.num_worker, pin_memory=True,
+                                                        sampler=sampler)
         training_batch_index = 0
         for epoch in range(self.num_epochs):
             print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
