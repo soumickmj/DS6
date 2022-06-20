@@ -568,6 +568,9 @@ class Pipeline:
                         os.path.join(result_root, subjectname + "patch_{}_op_mip.tif".format(index)))
                     Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
                         os.path.join(result_root, subjectname + "patch_{}_true_mip.tif".format(index)))
+                    test_logger.info("Testing " + subjectname + " with mip..." +
+                                     "\n floss:" + str(floss) +
+                                     "\n mip_loss:" + str(mip_loss))
 
     def test(self, test_logger, save_results=True, test_subjects=None):
         test_logger.debug('Testing...')
