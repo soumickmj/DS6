@@ -597,6 +597,7 @@ class Pipeline:
                                 mip_loss_patch += self.focalTverskyLoss(op_mip, true_mip)
                                 op_mip = op_mip.detach().cpu().squeeze().numpy()
                                 true_mip = true_mip.detach().cpu().squeeze().numpy()
+                                subjectname = patches_batch['subjectname'][index]
                                 Image.fromarray((op_mip * 255).astype('uint8'), 'L').save(
                                     os.path.join(result_root, subjectname + "patch_" + str(index) + "_op_mip.tif"))
                                 Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
