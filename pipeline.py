@@ -565,9 +565,9 @@ class Pipeline:
                     op_mip = op_mip.detach().cpu().squeeze().numpy()
                     true_mip = true_mip.detach().cpu().squeeze().numpy()
                     Image.fromarray((op_mip * 255).astype('uint8'), 'L').save(
-                        os.path.join(result_root, subjectname + "patch_{}_op_mip.tif".format(index)))
+                        os.path.join(result_root, subjectname + "patch_" + index + "_op_mip.tif"))
                     Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
-                        os.path.join(result_root, subjectname + "patch_{}_true_mip.tif".format(index)))
+                        os.path.join(result_root, subjectname + "patch_" + index + "_true_mip.tif"))
                     test_logger.info("Testing " + subjectname + " with mip..." +
                                      "\n floss:" + str(floss) +
                                      "\n mip_loss:" + str(mip_loss))
