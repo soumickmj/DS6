@@ -74,9 +74,17 @@ class Pipeline:
         self.num_worker = cmd_args.num_worker
 
         # Losses
+        self.floss_param_smooth = cmd_args.floss_param_smooth
+        self.floss_param_gamma = cmd_args.floss_param_gamma
+        self.floss_param_alpha = cmd_args.floss_param_alpha
+        self.mip_loss_param_smooth = cmd_args.mip_loss_param_smooth
+        self.mip_loss_param_gamma = cmd_args.mip_loss_param_gamma
+        self.mip_loss_param_alpha = cmd_args.mip_loss_param_alpha
         self.dice = Dice()
-        self.focalTverskyLoss = FocalTverskyLoss()
-        self.mip_loss = MIP_Loss()
+        self.focalTverskyLoss = FocalTverskyLoss(smooth=self.floss_param_smooth, gamma=self.floss_param_gamma,
+                                                 alpha=self.floss_param_alpha)
+        self.mip_loss = FocalTverskyLoss(smooth=self.mip_loss_param_smooth, gamma=self.mip_loss_param_gamma,
+                                         alpha=self.mip_loss_param_alpha)
         self.floss_coeff = cmd_args.floss_coeff
         self.mip_loss_coeff = cmd_args.mip_loss_coeff
         self.iou = IOU()
@@ -266,7 +274,7 @@ class Pipeline:
                             num_patches = 0
                             for index, op in enumerate(output):
                                 op_mip = torch.amax(op, 1)
-                                mip_loss_patch += loss_ratios[level] * self.focalTverskyLoss(op_mip,
+                                mip_loss_patch += loss_ratios[level] * self.mip_loss(op_mip,
                                                   patches_batch['ground_truth_mip_patch'][index].float().cuda())
                             if not torch.any(torch.isnan(mip_loss_patch)):
                                 mip_loss += mip_loss_patch / len(output)
@@ -470,7 +478,7 @@ class Pipeline:
                                 mip_loss_patch = torch.tensor(0.001).float().cuda()
                                 for idx, op in enumerate(output):
                                     op_mip = torch.amax(op, 1)
-                                    mip_loss_patch += self.focalTverskyLoss(op_mip,
+                                    mip_loss_patch += self.mip_loss(op_mip,
                                                       patches_batch['ground_truth_mip_patch'][idx].float().cuda())
                                 if not torch.any(torch.isnan(mip_loss_patch)):
                                     mipLoss_iter += mip_loss_patch / len(output)

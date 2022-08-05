@@ -140,6 +140,30 @@ if __name__ == '__main__':
                         type=float,
                         default=0.5,
                         help="Loss coefficient for mip_loss in total loss")
+    parser.add_argument("-floss_param_smooth",
+                        type=float,
+                        default=1,
+                        help="Loss coefficient for floss_param_smooth")
+    parser.add_argument("-floss_param_gamma",
+                        type=float,
+                        default=0.75,
+                        help="Loss coefficient for floss_param_gamma")
+    parser.add_argument("-floss_param_alpha",
+                        type=float,
+                        default=0.7,
+                        help="Loss coefficient for floss_param_alpha")
+    parser.add_argument("-mip_loss_param_smooth",
+                        type=float,
+                        default=1,
+                        help="Loss coefficient for mip_loss_param_smooth")
+    parser.add_argument("-mip_loss_param_gamma",
+                        type=float,
+                        default=0.75,
+                        help="Loss coefficient for mip_loss_param_gamma")
+    parser.add_argument("-mip_loss_param_alpha",
+                        type=float,
+                        default=0.7,
+                        help="Loss coefficient for mip_loss_param_alpha")
 
     args = parser.parse_args()
 
