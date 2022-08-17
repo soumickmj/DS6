@@ -41,9 +41,10 @@ __status__ = "Production"
 class Pipeline:
 
     def __init__(self, cmd_args, model, logger, dir_path, checkpoint_path, writer_training, writer_validating,
-                 training_set=None, validation_set=None, test_set=None):
+                 training_set=None, validation_set=None, test_set=None, wandb=None):
 
         self.logger = logger
+        self.wandb = wandb
         self.model = model
         self.lr_1 = cmd_args.learning_rate
         self.logger.info("learning rate " + str(self.lr_1))
@@ -416,6 +417,7 @@ class Pipeline:
                 total_IOU) + " mipLoss: " + str(total_mipLoss))
             write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, mipLoss=total_mipLoss,
                                 diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
+            self.wandb.log({"focalTverskyLoss_train": total_floss, "mipLoss_train": total_mipLoss})
 
             save_model(self.checkpoint_path, {
                 'epoch_type': 'last',
@@ -519,6 +521,7 @@ class Pipeline:
                       0, 0)
 
         write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss=dloss, diceScore=0, iou=0)
+        self.wandb.log({"focalTverskyLoss_val": floss, "mipLoss_val": mipLoss})
 
         if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = floss
