@@ -193,7 +193,6 @@ if __name__ == '__main__':
         "epochs": args.num_epochs,
         "batch_size": args.batch_size,
         "patch_size": args.patch_size,
-        "num_classes": args.num_classes,
         "samples_per_epoch": args.samples_per_epoch,
         "mip_loss_coeff": args.mip_loss_coeff,
         "floss_coeff": args.floss_coeff
