@@ -546,11 +546,12 @@ class Pipeline:
                                                         num_workers=self.num_worker, pin_memory=True,
                                                         sampler=sampler)
         result_root = os.path.join(self.output_path, self.model_name, "results")
+        result_root = os.path.join(result_root, "mips")
         os.makedirs(result_root, exist_ok=True)
         training_batch_index = 0
         for epoch in range(self.num_epochs):
             print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
-            self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
+            self.model.eval()  # make sure to assign mode:train, because in validation, mode is assigned as eval
             total_floss = 0
             total_mipLoss = 0
             total_DiceLoss = 0
@@ -569,7 +570,7 @@ class Pipeline:
                 self.logger.debug('Epoch: {} Batch Index: {}'.format(epoch, batch_index))
 
                 # Clear gradients
-                self.optimizer.zero_grad()
+                # self.optimizer.zero_grad()
 
                 # try:
                 with autocast(enabled=self.with_apex):
@@ -641,7 +642,7 @@ class Pipeline:
             for test_subject in test_subjects:
                 if 'label' in test_subject:
                     label = test_subject['label'][tio.DATA].float().squeeze().numpy()
-                    del test_subject['label']
+                    # del test_subject['label']
                 else:
                     label = None
                 subjectname = test_subject['subjectname']
@@ -677,7 +678,7 @@ class Pipeline:
                             output = self.model.sample(
                                 testing=True).detach().cpu()  # TODO: need to check whether sigmoid is needed for prob
 
-                    output = torch.movedim(output, -3, -1).type(local_batch.type())
+                    output = torch.movedim(output, -3, -1)
                     for idx, op in enumerate(output):
                         op_mip = torch.amax(op.squeeze().numpy(), 1)
                         label_mip = torch.amax(local_label[idx].squeeze().numpy(), 1)
