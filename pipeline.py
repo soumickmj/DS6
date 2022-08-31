@@ -59,7 +59,15 @@ class Pipeline:
         self.deform = cmd_args.deform
 
         # image input parameters
-        self.patch_size = cmd_args.patch_size
+        if bool(cmd_args.slice2D_shape):
+            shp = cmd_args.slice2D_shape+",1"
+            self.patch_size = tuple([int(i) for i in shp.split(",")])
+            self.dimMode = 2
+        else:
+            self.patch_size = cmd_args.patch_size
+            self.dimMode = 3
+            
+        
         self.stride_depth = cmd_args.stride_depth
         self.stride_length = cmd_args.stride_length
         self.stride_width = cmd_args.stride_width
@@ -93,7 +101,7 @@ class Pipeline:
             validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False)
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=self.num_worker) 
+                                                            num_workers=0) 
             self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=False,
                                                                 num_workers=self.num_worker)
     
@@ -123,7 +131,7 @@ class Pipeline:
                                         max_length=(self.samples_per_epoch//len(subjects))*2,
                                         samples_per_volume=self.samples_per_epoch//len(subjects),
                                         sampler=sampler,
-                                        num_workers=0,
+                                        num_workers=self.num_worker,
                                         start_background=True
                                     )
             return patches_queue
@@ -167,8 +175,12 @@ class Pipeline:
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                 local_labels = patches_batch['label'][tio.DATA].float().cuda()
                 
-                local_batch = torch.movedim(local_batch, -1, -3)
-                local_labels = torch.movedim(local_labels, -1, -3) 
+                if self.dimMode == 3:
+                    local_batch = torch.movedim(local_batch, -1, -3)
+                    local_labels = torch.movedim(local_labels, -1, -3) 
+                else:
+                    local_batch = local_batch.squeeze(-1)
+                    local_labels = local_labels.squeeze(-1)
 
                 # Transfer to GPU
                 self.logger.debug('Epoch: {} Batch Index: {}'.format(epoch, batch_index))
@@ -199,12 +211,13 @@ class Pipeline:
                         self.model.forward(local_batch, local_labels, training=True)
                         elbo = self.model.elbo(local_labels, analytic_kl=True)
                         reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
-                        if self.with_apex:
-                            floss = [self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss, 
-                                    -(self.model.beta * self.model.kl), 
-                                    self.model.reg_alpha * reg_loss] 
-                        else:
-                            floss = -elbo + self.model.reg_alpha * reg_loss
+                        floss = -elbo + self.model.reg_alpha * reg_loss
+                        # if self.with_apex:
+                        #     floss = [self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss, 
+                        #             -(self.model.beta * self.model.kl), 
+                        #             self.model.reg_alpha * reg_loss] 
+                        # else:
+                        #     floss = -elbo + self.model.reg_alpha * reg_loss
 
                     # Elastic Deformations
                     if self.deform:
@@ -333,8 +346,12 @@ class Pipeline:
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                 local_labels = patches_batch['label'][tio.DATA].float().cuda()
 
-                local_batch = torch.movedim(local_batch, -1, -3)
-                local_labels = torch.movedim(local_labels, -1, -3) 
+                if self.dimMode == 3:
+                    local_batch = torch.movedim(local_batch, -1, -3)
+                    local_labels = torch.movedim(local_labels, -1, -3) 
+                else:
+                    local_batch = local_batch.squeeze(-1)
+                    local_labels = local_labels.squeeze(-1)
 
                 floss_iter = 0
                 output1 = 0
@@ -357,11 +374,12 @@ class Pipeline:
                                 level += 1
                         else:
                             self.model.forward(local_batch, training=False)
-                            output1 = torch.sigmoid(self.model.sample(testing=True))
-                            floss_iter = self.focalTverskyLoss(output1, local_labels)
-                            # elbo = self.model.elbo(local_labels)
-                            # reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
-                            # floss_iter = -elbo + 1e-5 * reg_loss
+                            output1 = self.model.sample(testing=True)
+                            # output1 = torch.sigmoid(self.model.sample(testing=True))
+                            # floss_iter = self.focalTverskyLoss(output1, local_labels)
+                            elbo = self.model.elbo(local_labels)
+                            reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
+                            floss_iter = -elbo + self.model.reg_alpha * reg_loss
                 except Exception as error:
                     self.logger.exception(error)
 
@@ -430,7 +448,10 @@ class Pipeline:
                     local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                     locations = patches_batch[tio.LOCATION]
 
-                    local_batch = torch.movedim(local_batch, -1, -3) 
+                    if self.dimMode == 3:
+                        local_batch = torch.movedim(local_batch, -1, -3)
+                    else:
+                        local_batch = local_batch.squeeze(-1)
 
                     with autocast(enabled=self.with_apex):
                         if not self.isProb:
@@ -442,7 +463,9 @@ class Pipeline:
                             self.model.forward(local_batch, training=False)
                             output = self.model.sample(testing=True).detach().cpu() #TODO: need to check whether sigmoid is needed for prob
 
-                    output = torch.movedim(output, -3, -1).type(local_batch.type())
+                    if self.dimMode == 2:
+                        output = output.unsqueeze(-3)
+                    output = torch.movedim(output, -3, -1).type(local_batch.type()) 
                     aggregator.add_batch(output, locations)
 
                 predicted = aggregator.get_output_tensor().squeeze().numpy()

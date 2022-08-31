@@ -43,7 +43,7 @@ if __name__ == '__main__':
                              "3{Attention-U-Net}; \n"
                              "4{Probabilistic-U-Net};")
     parser.add_argument("-model_name",
-                        default="Model_v1",
+                        default="trial_ProbU2D_At0",
                         help="Name of the model")
     parser.add_argument("-dataset_path",
                         default="/home/schatter/Soumick/FranziVSeg/DS_Original/Vols/Forrest_Organised/Fold0",
@@ -107,19 +107,19 @@ if __name__ == '__main__':
                         default=64,
                         help="Patch size of the input volume")
     parser.add_argument("-slice2D_shape",
-                        default="",
+                        default="480,640",
                         help="For 2D models, set it to the desired shape. Or blank")
     parser.add_argument("-stride_depth",
                         type=int,
-                        default=16,
+                        default=1,
                         help="Strides for dividing the input volume into patches in depth dimension (To be used during validation and inference)")
     parser.add_argument("-stride_width",
                         type=int,
-                        default=32,
+                        default=640,
                         help="Strides for dividing the input volume into patches in width dimension (To be used during validation and inference)")
     parser.add_argument("-stride_length",
                         type=int,
-                        default=32,
+                        default=480,
                         help="Strides for dividing the input volume into patches in length dimension (To be used during validation and inference)")
     parser.add_argument("-samples_per_epoch",
                         type=int,
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
     # Model
-    model = getModel(args.model)
+    model = getModel(args.model, is2D=bool(args.slice2D_shape))
     model.cuda()
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
