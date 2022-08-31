@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-batch_size",
                         type=int,
-                        default=15,
+                        default=32,
                         help="Batch size for training")
     parser.add_argument("-num_epochs",
                         type=int,
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                         help="Number of epochs for training")
     parser.add_argument("-learning_rate",
                         type=float,
-                        default=0.01,
+                        default=1e-4,
                         help="Learning rate")
     parser.add_argument("-patch_size",
                         type=int,
@@ -153,6 +153,7 @@ if __name__ == '__main__':
     # Model
     model = getModel(args.model, is2D=bool(args.slice2D_shape))
     model.cuda()
+    print("It's a 2D model!!" if bool(args.slice2D_shape) else "It's a 3D model!!")
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)

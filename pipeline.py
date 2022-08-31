@@ -394,8 +394,10 @@ class Pipeline:
         self.logger.info("Epoch:" + str(tainingIndex) + process + "..." +
                          "\n FocalTverskyLoss:" + str(floss) +
                          "\n DiceLoss:" + str(dloss))
-
-        write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, dloss, 0, 0)
+        if self.dimMode == 3:
+            write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, dloss, 0, 0)
+        else:
+            write_summary(writer, self.logger, tainingIndex, local_labels[0][0], output1[0][0], floss, dloss, 0, 0)
 
         if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = floss
@@ -502,7 +504,7 @@ class Pipeline:
                                 "\n Dice:" + str(dice3D) +
                                 "\n JacardIndex:" + str(iou3D))
 
-        df.to_excel(os.path.join(result_root, "Results_Main.xlsx"))
+        df.to_csv(os.path.join(result_root, "Results_Main.csv"))
 
     def predict(self, image_path, label_path, predict_logger):
         image_name = os.path.basename(image_path).split('.')[0]

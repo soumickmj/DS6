@@ -81,7 +81,7 @@ class AxisAlignedConvGaussian(nn.Module):
         nn.init.kaiming_normal_(self.conv_layer.weight, mode='fan_in', nonlinearity='relu')
         nn.init.normal_(self.conv_layer.bias)
 
-    @autocast(enabled=False)
+    #@autocast(enabled=False)
     def forward(self, input, segm=None):
 
         #If segmentation is not none, concatenate the mask to the channel axis of the input
@@ -278,10 +278,33 @@ class ProbabilisticUnet(nn.Module):
             kl_div = log_posterior_prob - log_prior_prob
         return kl_div
 
+    #I re-wrote the elbo earlier, but I don't know now why!!! So going with the original (Soumick)
+    # def elbo(self, segm, analytic_kl=True, reconstruct_posterior_mean=False):
+    #     """
+    #     Calculate the evidence lower bound of the log-likelihood of P(Y|X)
+    #     """        
+    #     z_posterior = self.posterior_latent_space.rsample()
+        
+    #     self.kl = torch.mean(self.kl_divergence(analytic=analytic_kl, calculate_posterior=False, z_posterior=z_posterior))
+
+    #     #Here we use the posterior sample sampled above
+    #     self.reconstruction = self.reconstruct(use_posterior_mean=reconstruct_posterior_mean, calculate_posterior=False, z_posterior=z_posterior)
+        
+    #     reconstruction_loss = ce_loss(logits=self.reconstruction, labels=segm, n_classes=self.num_classes, loss_mask=None, one_hot_labels=False)
+    #     self.reconstruction_loss = reconstruction_loss['sum']
+    #     self.mean_reconstruction_loss = reconstruction_loss['mean']
+
+    #     if self.use_mean_recon_loss:
+    #         return -(self.mean_reconstruction_loss + self.beta * self.kl)
+    #     else:
+    #         return -(self.reconstruction_loss + self.beta * self.kl)
+
     def elbo(self, segm, analytic_kl=True, reconstruct_posterior_mean=False):
         """
         Calculate the evidence lower bound of the log-likelihood of P(Y|X)
-        """        
+        """
+
+        criterion = nn.BCEWithLogitsLoss(size_average = False, reduce=False, reduction=None)
         z_posterior = self.posterior_latent_space.rsample()
         
         self.kl = torch.mean(self.kl_divergence(analytic=analytic_kl, calculate_posterior=False, z_posterior=z_posterior))
@@ -289,11 +312,8 @@ class ProbabilisticUnet(nn.Module):
         #Here we use the posterior sample sampled above
         self.reconstruction = self.reconstruct(use_posterior_mean=reconstruct_posterior_mean, calculate_posterior=False, z_posterior=z_posterior)
         
-        reconstruction_loss = ce_loss(logits=self.reconstruction, labels=segm, n_classes=self.num_classes, loss_mask=None, one_hot_labels=False)
-        self.reconstruction_loss = reconstruction_loss['sum']
-        self.mean_reconstruction_loss = reconstruction_loss['mean']
+        reconstruction_loss = criterion(input=self.reconstruction, target=segm)
+        self.reconstruction_loss = torch.sum(reconstruction_loss)
+        self.mean_reconstruction_loss = torch.mean(reconstruction_loss)
 
-        if self.use_mean_recon_loss:
-            return -(self.mean_reconstruction_loss + self.beta * self.kl)
-        else:
-            return -(self.reconstruction_loss + self.beta * self.kl)
+        return -(self.reconstruction_loss + self.beta * self.kl)

@@ -43,7 +43,7 @@ if __name__ == '__main__':
                              "3{Attention-U-Net}; \n"
                              "4{Probabilistic-U-Net};")
     parser.add_argument("-model_name",
-                        default="Model_v1",
+                        default="trial_ProbU3D_At0",
                         help="Name of the model")
     parser.add_argument("-dataset_path",
                         default="/home/schatter/Soumick/FranziVSeg/DS_Original/Vols/Forrest_Organised/Fold0",
@@ -100,7 +100,7 @@ if __name__ == '__main__':
                         help="Number of epochs for training")
     parser.add_argument("-learning_rate",
                         type=float,
-                        default=0.01,
+                        default=1e-4,
                         help="Learning rate")
     parser.add_argument("-patch_size",
                         type=int,
@@ -151,8 +151,9 @@ if __name__ == '__main__':
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
     # Model
-    model = getModel(args.model)
+    model = getModel(args.model, is2D=bool(args.slice2D_shape))
     model.cuda()
+    print("It's a 2D model!!" if bool(args.slice2D_shape) else "It's a 3D model!!")
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
