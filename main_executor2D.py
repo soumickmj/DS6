@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-batch_size",
                         type=int,
-                        default=32,
+                        default=14,
                         help="Batch size for training")
     parser.add_argument("-num_epochs",
                         type=int,
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
     
-    wandb.init(project="ProbVSegFranzi", entity="mickchimp")
+    wandb.init(project="ProbVSegFranzi", entity="mickchimp", id=MODEL_NAME, name=MODEL_NAME, resume=True)
     wandb.config = args
     wandb.watch(model, log_freq=100)
 
