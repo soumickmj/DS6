@@ -53,7 +53,8 @@ class Pipeline:
         self.checkpoint_path = checkpoint_path
         self.DATASET_FOLDER = dir_path
         self.output_path = cmd_args.output_path
-
+        self.plauslabels = cmd_args.plauslabels
+        self.plauslabel_mode = cmd_args.plauslabel_mode
         self.model_name = cmd_args.model_name
 
         self.clip_grads = cmd_args.clip_grads
@@ -66,7 +67,7 @@ class Pipeline:
             self.patch_size = tuple([int(i) for i in shp.split(",")])
             self.dimMode = 2
         else:
-            self.patch_size = cmd_args.patch_size
+            self.patch_size = (cmd_args.patch_size, cmd_args.patch_size, cmd_args.patch_size)
             self.dimMode = 3
             
         
@@ -105,15 +106,15 @@ class Pipeline:
             self.ProbFlag = 0
 
         if cmd_args.train: #Only if training is to be performed
-            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set)
-            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False)
+            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set, plauslabels_path=self.DATASET_FOLDER + '/train_plausablelabel/' if cmd_args.plauslabels else "")
+            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False, plauslabels_path=self.DATASET_FOLDER + '/validate_plausablelabel/' if cmd_args.plauslabels else "")
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
                                                             num_workers=0) 
             self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=False,
                                                                 num_workers=self.num_worker)
     
-    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, get_subjects_only=False, transforms=None):
+    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, get_subjects_only=False, transforms=None, plauslabels_path=""):
         vols = glob(vol_path + "*.nii") + glob(vol_path + "*.nii.gz")
         labels = glob(label_path + "*.nii") + glob(label_path + "*.nii.gz")
         subjects = []
@@ -121,11 +122,16 @@ class Pipeline:
             v = vols[i]
             filename = os.path.basename(v).split('.')[0]
             l = [s for s in labels if filename in s][0]
-            subject = tio.Subject(
-                                    img=tio.ScalarImage(v),
-                                    label=tio.LabelMap(l),
-                                    subjectname=filename,
-                                )
+            kwargs_dict = {
+                "img":tio.ScalarImage(v),
+                "label":tio.LabelMap(l),
+                "subjectname":filename,
+            }
+            if plauslabels_path != "":
+                p_labels = sorted(glob(plauslabels_path + filename + "*.nii*"))
+                for i, pLbl in enumerate(p_labels):
+                    kwargs_dict["p_label_"+str(i)] = tio.LabelMap(pLbl)
+            subject = tio.Subject(**kwargs_dict)
             subjects.append(subject)   
 
         if get_subjects_only:
@@ -181,6 +187,9 @@ class Pipeline:
             for batch_index, patches_batch in enumerate(tqdm(self.train_loader)):
 
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                if self.plauslabels:
+                    if self.plauslabel_mode == 1:
+                        pass
                 local_labels = patches_batch['label'][tio.DATA].float().cuda()
                 
                 if self.dimMode == 3:
@@ -215,7 +224,7 @@ class Pipeline:
                             if level == 0:
                                 output1 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                                output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
                             output = torch.sigmoid(output)
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             level += 1
@@ -258,7 +267,7 @@ class Pipeline:
                             if level == 0:
                                 output2 = output
                             if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                                output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
 
                             output = torch.sigmoid(output)
                             floss2 += loss_ratios[level] * self.focalTverskyLoss(output, local_labels_xt)
@@ -385,7 +394,7 @@ class Pipeline:
                                 if level == 0:
                                     output1 = output
                                 if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                    output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                                    output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
 
                                 output = torch.sigmoid(output)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)

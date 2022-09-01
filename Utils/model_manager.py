@@ -8,9 +8,11 @@ from ssl import SSLSocket
 import torch.nn as nn
 from Models.ProbUNetV2.model import InjectionConvEncoder2D, InjectionUNet2D, ProbabilisticSegmentationNet
 from Models.attentionunet3d import AttU_Net
+from Models.attentionunet2d import AttU_Net as AttU_Net2D
 from Models.prob_unet.probabilistic_unet import ProbabilisticUnet
 from Models.prob_unet2D.probabilistic_unet import ProbabilisticUnet as ProbabilisticUnet2D
 from Models.unet3d import U_Net, U_Net_DeepSup
+from Models.unet2d import U_Net as U_Net2D, U_Net_DeepSup as U_Net_DeepSup2D
 
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
@@ -31,9 +33,9 @@ def getModel(model_no, is2D=False): #Send model params from outside
     defaultModel = U_Net() #Default
     if is2D:
         model_list = {
-            # 1: U_Net(),
-            # 2: U_Net_DeepSup(), 
-            # 3: AttU_Net(),
+            1: U_Net2D(),
+            2: U_Net_DeepSup2D(), 
+            3: AttU_Net2D(),
             4: ProbabilisticUnet2D(input_channels=1, num_classes=1, num_filters=[32,64,128,192], latent_dim=2, no_convs_fcomb=4, beta=10.0),
             5: ProbabilisticSegmentationNet(in_channels=1, out_channels=1, 
                                             task_op=InjectionUNet2D,

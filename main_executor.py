@@ -54,6 +54,16 @@ if __name__ == '__main__':
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
                              "Example: /home/dataset/")
+    parser.add_argument('-plauslabels',
+                        default=True,
+                        help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausablelabel, test_plausablelabel, validate_plausablelabel")
+    parser.add_argument("-plauslabel_mode",
+                        type=int,
+                        default=1,
+                        help="1{Use-Plausable-And-Main-For-Training}; \n"
+                             "2{Use-Plausable-Only-For-Training}; \n"
+                             "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
+                             "4{Use-Plausable-Only-For-TrainAndValid};")
     parser.add_argument("-output_path",
                         default="/home/schatter/Soumick/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
                         help="Folder path to store output "
@@ -162,8 +172,7 @@ if __name__ == '__main__':
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
     
-    wandb.init(project="ProbVSegFranzi", entity="mickchimp")
-    wandb.config = args
+    wandb.init(project="ProbVSegFranzi", entity="mickchimp", id=MODEL_NAME, name=MODEL_NAME, resume=True, config=args.__dict__)
     wandb.watch(model, log_freq=100)
 
     pipeline = Pipeline(cmd_args=args, model=model, logger=logger,
