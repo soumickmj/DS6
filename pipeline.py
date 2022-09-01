@@ -8,6 +8,7 @@ import random
 import sys
 from glob import glob
 
+import wandb
 import nibabel
 import numpy as np
 import pandas as pd
@@ -16,6 +17,7 @@ import torch.utils.data
 import torchio as tio
 import torchvision.transforms as transforms
 from skimage.filters import threshold_otsu
+from torch import nn, optim, distributions
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
@@ -89,12 +91,18 @@ class Pipeline:
             self.scaler = GradScaler()
 
         #set probabilistic property
-        if "Models.prob" in self.model.__module__:
-            self.isProb = True
+        if "Models.prob_unet" in self.model.__module__:
+            self.ProbFlag = 1
             from Models.prob_unet.utils import l2_regularisation
             self.l2_regularisation = l2_regularisation
+        elif "Models.ProbUNetV2" in self.model.__module__:
+            self.ProbFlag = 2
+            self.criterion_segmentation = FocalTverskyLoss()
+            self.criterion_latent = distributions.kl_divergence
+            self.criterion_latent_weight = 1.0
+            self.criterion_segmentation_weight = 1.0
         else:
-            self.isProb = False
+            self.ProbFlag = 0
 
         if cmd_args.train: #Only if training is to be performed
             traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set)
@@ -185,6 +193,10 @@ class Pipeline:
                 # Transfer to GPU
                 self.logger.debug('Epoch: {} Batch Index: {}'.format(epoch, batch_index))
 
+                if self.ProbFlag == 2:
+                    self.model.reset()
+                    self.model.train()
+                    
                 # Clear gradients
                 self.optimizer.zero_grad()
 
@@ -198,7 +210,7 @@ class Pipeline:
 
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
-                    if not self.isProb:
+                    if self.ProbFlag == 0:
                         for output in self.model(local_batch): 
                             if level == 0:
                                 output1 = output
@@ -207,7 +219,7 @@ class Pipeline:
                             output = torch.sigmoid(output)
                             floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                             level += 1
-                    else:
+                    elif self.ProbFlag == 1:
                         self.model.forward(local_batch, local_labels, training=True)
                         elbo = self.model.elbo(local_labels, analytic_kl=True)
                         reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
@@ -218,6 +230,11 @@ class Pipeline:
                         #             self.model.reg_alpha * reg_loss] 
                         # else:
                         #     floss = -elbo + self.model.reg_alpha * reg_loss
+                    else:
+                        output = self.model(local_batch, local_labels, make_onehot=False)
+                        loss_segmentation = self.criterion_segmentation(output, local_labels).sum()
+                        loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum()
+                        floss = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
 
                     # Elastic Deformations
                     if self.deform:
@@ -262,7 +279,7 @@ class Pipeline:
                 #     sys.exit()
 
                 self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + "Training..." +
-                                 "\n focalTverskyLoss:" + str(floss))
+                                 "\n MainLoss:" + str(floss))
 
                 # Calculating gradients
                 if self.with_apex:
@@ -293,6 +310,7 @@ class Pipeline:
 
                 if training_batch_index % 50 == 0:  # Save best metric evaluation weights                        
                     write_summary(self.writer_training, self.logger, training_batch_index, focalTverskyLoss=floss.detach().item())
+                    wandb.log({"loss": floss.detach().item()})
                 training_batch_index += 1
 
                 # Initialising the average loss metrics
@@ -307,7 +325,7 @@ class Pipeline:
 
             # Print every epoch
             self.logger.info("Epoch:" + str(epoch) + " Average Training..." +
-                             "\n focalTverskyLoss:" + str(total_floss))
+                             "\n MainLoss:" + str(total_floss))
 
             save_model(self.checkpoint_path, {
                 'epoch_type': 'last',
@@ -333,7 +351,7 @@ class Pipeline:
         self.logger.debug('Validating...')
         print("Validate Epoch: "+str(epoch) +" of "+ str(self.num_epochs))
 
-        floss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0
+        floss, binloss, dScore, dscore, jaccard_index = 0, 0, 0, 0, 0
         no_patches = 0
         self.model.eval()
         data_loader = self.validate_loader
@@ -362,7 +380,7 @@ class Pipeline:
                         level = 0
 
                         # Forward propagation
-                        if not self.isProb:
+                        if self.ProbFlag == 0:
                             for output in self.model(local_batch):
                                 if level == 0:
                                     output1 = output
@@ -372,7 +390,7 @@ class Pipeline:
                                 output = torch.sigmoid(output)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
-                        else:
+                        elif self.ProbFlag == 1:
                             self.model.forward(local_batch, training=False)
                             output1 = self.model.sample(testing=True)
                             # output1 = torch.sigmoid(self.model.sample(testing=True))
@@ -380,24 +398,35 @@ class Pipeline:
                             elbo = self.model.elbo(local_labels)
                             reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
                             floss_iter = -elbo + self.model.reg_alpha * reg_loss
+                        else:
+                            output1 = self.model(local_batch, local_labels, make_onehot=False)
+                            floss_iter = self.criterion_segmentation(output1, local_labels).sum() #as there is no loss_latent, this is used as the final loss. 
+                            # loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum() #posterior isn't present when there is no gradient (in eval mode)
+                            # floss_iter = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
+                        
                 except Exception as error:
                     self.logger.exception(error)
 
-                floss += floss_iter
-                dl, ds = self.dice(torch.sigmoid(output1), local_labels)
-                dloss += dl.detach().item()
+                floss += floss_iter.detach().item()
+                if self.ProbFlag == 0:
+                    dl, ds = self.dice(torch.sigmoid(output1), local_labels)
+                else:
+                    dl, ds = self.dice(output1, local_labels)
+                dScore += ds.detach().item()
 
         # Average the losses
         floss = floss / no_patches
-        dloss = dloss / no_patches
+        dScore = dScore / no_patches
         process = ' Validating'
         self.logger.info("Epoch:" + str(tainingIndex) + process + "..." +
-                         "\n FocalTverskyLoss:" + str(floss) +
-                         "\n DiceLoss:" + str(dloss))
+                         "\n MainLoss:" + str(floss) +
+                         "\n DiceScore:" + str(dScore))
         if self.dimMode == 3:
-            write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, dloss, 0, 0)
+            write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, dScore, 0, 0)
         else:
-            write_summary(writer, self.logger, tainingIndex, local_labels[0][0], output1[0][0], floss, dloss, 0, 0)
+            write_summary(writer, self.logger, tainingIndex, local_labels[0][0], output1[0][0], floss, dScore, 0, 0)
+        wandb.log({"loss": floss})
+        wandb.log({"Dice": dScore})
 
         if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = floss
@@ -448,22 +477,35 @@ class Pipeline:
 
                 for index, patches_batch in enumerate(tqdm(patch_loader)):
                     local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                    local_labels = patches_batch['label'][tio.DATA].float().cuda()
                     locations = patches_batch[tio.LOCATION]
 
                     if self.dimMode == 3:
                         local_batch = torch.movedim(local_batch, -1, -3)
+                        local_labels = torch.movedim(local_labels, -1, -3) 
                     else:
                         local_batch = local_batch.squeeze(-1)
+                        local_labels = local_labels.squeeze(-1)
 
                     with autocast(enabled=self.with_apex):
-                        if not self.isProb:
+                        if not self.ProbFlag:
                             output = self.model(local_batch)
                             if type(output) is tuple or type(output) is list:
                                 output = output[0]
                             output = torch.sigmoid(output).detach().cpu()
-                        else:
+                        elif self.ProbFlag == 1:
                             self.model.forward(local_batch, training=False)
                             output = self.model.sample(testing=True).detach().cpu() #TODO: need to check whether sigmoid is needed for prob
+                        else:
+                            output = self.model(local_batch, local_labels, make_onehot=False)
+                            
+                            self.model.encode_posterior(local_batch, local_labels, make_onehot=False)
+                            reference_reconstruction = self.model.reconstruct(out_device="cpu")
+                            reference_kl = distributions.kl_divergence(self.model.posterior, self.model.prior)
+                            
+                            # loss_segmentation = self.criterion_segmentation(output1, local_labels).sum()
+                            # loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum()
+                            # floss_iter = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
 
                     if self.dimMode == 2:
                         output = output.unsqueeze(-3)

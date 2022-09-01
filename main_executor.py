@@ -10,6 +10,8 @@ import numpy as np
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
 
+import wandb
+
 from pipeline import Pipeline
 from Utils.logger import Logger
 from Utils.model_manager import getModel
@@ -29,6 +31,7 @@ torch.backends.cudnn.benchmark = False
 torch.manual_seed(2020)
 np.random.seed(2020)
 random.seed(2020)
+torch.set_num_threads(2)
 
 # torch.autograd.set_detect_anomaly(True)
 
@@ -37,13 +40,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-model",
                         type=int,
-                        default=4,
+                        default=5,
                         help="1{U-Net}; \n"
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net}; \n"
-                             "4{Probabilistic-U-Net};")
+                             "4{Probabilistic-U-Net};\n"
+                             "5{V2-Probabilistic-U-Net};")
     parser.add_argument("-model_name",
-                        default="trial_ProbU3D_At0",
+                        default="ProbU3Dv2_At0",
                         help="Name of the model")
     parser.add_argument("-dataset_path",
                         default="/home/schatter/Soumick/FranziVSeg/DS_Original/Vols/Forrest_Organised/Fold0",
@@ -59,7 +63,7 @@ if __name__ == '__main__':
                         default=True,
                         help="To train the model")
     parser.add_argument('-test',
-                        default=True,
+                        default=False,
                         help="To test the model")
     parser.add_argument('-predict',
                         default=False,
@@ -83,7 +87,7 @@ if __name__ == '__main__':
                         action="store_true",
                         help="To use deformation for training")
     parser.add_argument('-clip_grads',
-                        default=True,
+                        default=False,
                         action="store_true",
                         help="To use deformation for training")
     parser.add_argument('-apex',
@@ -92,11 +96,11 @@ if __name__ == '__main__':
 
     parser.add_argument("-batch_size",
                         type=int,
-                        default=15,
+                        default=50,
                         help="Batch size for training")
     parser.add_argument("-num_epochs",
                         type=int,
-                        default=50,
+                        default=500,
                         help="Number of epochs for training")
     parser.add_argument("-learning_rate",
                         type=float,
@@ -123,7 +127,7 @@ if __name__ == '__main__':
                         help="Strides for dividing the input volume into patches in length dimension (To be used during validation and inference)")
     parser.add_argument("-samples_per_epoch",
                         type=int,
-                        default=8000,
+                        default=4000,
                         help="Number of samples per epoch")
     parser.add_argument("-num_worker",
                         type=int,
@@ -157,6 +161,10 @@ if __name__ == '__main__':
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
+    
+    wandb.init(project="ProbVSegFranzi", entity="mickchimp")
+    wandb.config = args
+    wandb.watch(model, log_freq=100)
 
     pipeline = Pipeline(cmd_args=args, model=model, logger=logger,
                         dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, 
@@ -170,6 +178,7 @@ if __name__ == '__main__':
 
     if args.train:
         pipeline.train()
+        # pipeline.validate(13,13)
         torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.test:
