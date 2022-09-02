@@ -106,8 +106,8 @@ class Pipeline:
             self.ProbFlag = 0
 
         if cmd_args.train: #Only if training is to be performed
-            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set, plauslabels_path=self.DATASET_FOLDER + '/train_plausablelabel/' if cmd_args.plauslabels else "")
-            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False, plauslabels_path=self.DATASET_FOLDER + '/validate_plausablelabel/' if cmd_args.plauslabels else "")
+            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set, plauslabels_path=self.DATASET_FOLDER + '/train_plausiblelabel/' if cmd_args.plauslabels else "")
+            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False, plauslabels_path=self.DATASET_FOLDER + '/validate_plausiblelabel/' if cmd_args.plauslabels else "")
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
                                                             num_workers=0) 
@@ -188,9 +188,13 @@ class Pipeline:
 
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                 if self.plauslabels:
-                    if self.plauslabel_mode == 1:
-                        pass
-                local_labels = patches_batch['label'][tio.DATA].float().cuda()
+                    labels = [k for k in patches_batch.keys() if "p_label" in k]
+                    if self.plauslabel_mode in [1,3]:
+                        labels += ["label"]
+                    lbl = random.choice(labels)
+                else:
+                    lbl = "label"
+                local_labels = patches_batch[lbl][tio.DATA].float().cuda()
                 
                 if self.dimMode == 3:
                     local_batch = torch.movedim(local_batch, -1, -3)
@@ -371,7 +375,14 @@ class Pipeline:
                 no_patches += 1
 
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
-                local_labels = patches_batch['label'][tio.DATA].float().cuda()
+                if self.plauslabels and self.plauslabel_mode>=3:
+                    labels = [k for k in patches_batch.keys() if "p_label" in k]
+                    if self.plauslabel_mode == 3:
+                        labels += ["label"]
+                    lbl = random.choice(labels)
+                else:
+                    lbl = "label"
+                local_labels = patches_batch[lbl][tio.DATA].float().cuda()
 
                 if self.dimMode == 3:
                     local_batch = torch.movedim(local_batch, -1, -3)

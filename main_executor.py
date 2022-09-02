@@ -35,6 +35,7 @@ torch.set_num_threads(2)
 
 # torch.autograd.set_detect_anomaly(True)
 
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
@@ -56,10 +57,10 @@ if __name__ == '__main__':
                              "Example: /home/dataset/")
     parser.add_argument('-plauslabels',
                         default=True,
-                        help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausablelabel, test_plausablelabel, validate_plausablelabel")
+                        help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausiblelabel, test_plausiblelabel, validate_plausiblelabel")
     parser.add_argument("-plauslabel_mode",
                         type=int,
-                        default=1,
+                        default=3,
                         help="1{Use-Plausable-And-Main-For-Training}; \n"
                              "2{Use-Plausable-Only-For-Training}; \n"
                              "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
