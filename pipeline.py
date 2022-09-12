@@ -50,10 +50,12 @@ class Pipeline:
         self.logger.info("learning rate " + str(self.lr_1))
         self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
         self.num_epochs = cmd_args.num_epochs
+        self.k_folds = cmd_args.k_folds
 
         self.writer_training = writer_training
         self.writer_validating = writer_validating
         self.checkpoint_path = checkpoint_path
+        self.load_path = cmd_args.load_path
         self.DATASET_FOLDER = dir_path
         self.output_path = cmd_args.output_path
 
@@ -104,34 +106,21 @@ class Pipeline:
         else:
             self.isProb = False
 
-        if cmd_args.train:  # Only if training is to be performed
-                traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
-                                                    label_path=self.DATASET_FOLDER + '/train_label/',
-                                                    crossvalidation_set=training_set)
-                validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
-                                                         label_path=self.DATASET_FOLDER + '/validate_label/',
-                                                         crossvalidation_set=validation_set, is_train=False, is_validate=True)
-                sampler = torch.utils.data.RandomSampler(data_source=traindataset, replacement=True, num_samples=self.samples_per_epoch)
-                self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=False,
-                                                                num_workers=self.num_worker, pin_memory=True,
-                                                                sampler=sampler)
-                self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
-                                                                   shuffle=False,
-                                                                   num_workers=self.num_worker, pin_memory=True)
-
-    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, is_validate=False, get_subjects_only=False,
+    def create_TIOSubDS(self, vol_path, label_path, crossvalidation_set=None, is_train=True, is_validate=False,
+                        get_subjects_only=False,
                         transforms=None):
         if is_train:
             trainDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
-                                dir_path=self.DATASET_FOLDER + '/train/',
-                                label_dir_path=self.DATASET_FOLDER + '/train_label/',
+                                dir_path=vol_path,
+                                label_dir_path=label_path,
                                 # TODO: implement non-iso patch-size, now only using the first element
                                 stride_depth=self.stride_depth, stride_length=self.stride_length,
                                 stride_width=self.stride_width, Size=None, fly_under_percent=None,
                                 # TODO: implement fly_under_percent, if needed
                                 patch_size_us=self.patch_size, pre_interpolate=None, norm_data=False,
                                 pre_load=True,
-                                return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
+                                return_coords=True,
+                                files_us=crossvalidation_set)  # TODO implement patch_size_us if required - patch_size//scaling_factor
             if get_subjects_only:
                 return trainDS
             # sampler = tio.data.UniformSampler(self.patch_size)
@@ -147,15 +136,16 @@ class Pipeline:
             return trainDS
         elif is_validate:
             validationDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
-                                dir_path=self.DATASET_FOLDER + '/validate/',
-                                label_dir_path=self.DATASET_FOLDER + '/validate_label/',
-                                # TODO: implement non-iso patch-size, now only using the first element
-                                stride_depth=self.stride_depth, stride_length=self.stride_length,
-                                stride_width=self.stride_width, Size=None, fly_under_percent=None,
-                                # TODO: implement fly_under_percent, if needed
-                                patch_size_us=self.patch_size, pre_interpolate=None, norm_data=False,
-                                pre_load=True,
-                                return_coords=True)  # TODO implement patch_size_us if required - patch_size//scaling_factor
+                                     dir_path=vol_path,
+                                     label_dir_path=label_path,
+                                     # TODO: implement non-iso patch-size, now only using the first element
+                                     stride_depth=self.stride_depth, stride_length=self.stride_length,
+                                     stride_width=self.stride_width, Size=None, fly_under_percent=None,
+                                     # TODO: implement fly_under_percent, if needed
+                                     patch_size_us=self.patch_size, pre_interpolate=None, norm_data=False,
+                                     pre_load=True,
+                                     return_coords=True,
+                                     files_us=crossvalidation_set)  # TODO implement patch_size_us if required - patch_size//scaling_factor
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
             grid_samplers = []
             for i in range(len(validationDS)):
@@ -217,18 +207,44 @@ class Pipeline:
 
     def train(self):
         self.logger.debug("Training...")
+        vol_path = self.DATASET_FOLDER + '/train/'
+        vols = glob(vol_path + "*.nii") + glob(vol_path + "*.nii.gz")
+        random.shuffle(vols)
+        # get k folds for cross validation
+        folds = [vols[i::self.k_folds] for i in range(self.k_folds)]
 
-        training_batch_index = 0
-        for epoch in range(self.num_epochs):
-            print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
+        for fold_index in range(self.k_folds):
+            train_vols = []
+            for idx, fold in enumerate(folds):
+                if idx != fold_index:
+                    train_vols.extend([*fold])
+            validation_vols = [*folds[fold_index]]
+
+            traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
+                                                label_path=self.DATASET_FOLDER + '/train_label/',
+                                                crossvalidation_set=train_vols)
+            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/',
+                                                     label_path=self.DATASET_FOLDER + '/train_label/',
+                                                     crossvalidation_set=validation_vols, is_train=False,
+                                                     is_validate=True)
+            sampler = torch.utils.data.RandomSampler(data_source=traindataset, replacement=True,
+                                                     num_samples=self.samples_per_epoch)
+            train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=False,
+                                                       num_workers=self.num_worker, pin_memory=True,
+                                                       sampler=sampler)
+            validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
+                                                          shuffle=False,
+                                                          num_workers=self.num_worker, pin_memory=True)
+            print("Train Fold: " + str(fold_index) + " of " + str(self.k_folds))
             self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
             total_floss = 0
             total_mipLoss = 0
+            total_loss = 0
             total_DiceLoss = 0
             total_IOU = 0
             total_DiceScore = 0
             batch_index = 0
-            for batch_index, patches_batch in enumerate(tqdm(self.train_loader)):
+            for batch_index, patches_batch in enumerate(tqdm(train_loader)):
 
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                 local_labels = patches_batch['label'][tio.DATA].float().cuda()
@@ -237,7 +253,7 @@ class Pipeline:
                 local_labels = torch.movedim(local_labels, -1, -3)
 
                 # Transfer to GPU
-                self.logger.debug('Epoch: {} Batch Index: {}'.format(epoch, batch_index))
+                self.logger.debug('Fold: {} Batch Index: {}'.format(fold_index, batch_index))
 
                 # Clear gradients
                 self.optimizer.zero_grad()
@@ -276,7 +292,9 @@ class Pipeline:
                             for index, op in enumerate(output):
                                 op_mip = torch.amax(op, 1)
                                 mip_loss_patch += loss_ratios[level] * self.mip_loss(op_mip,
-                                                  patches_batch['ground_truth_mip_patch'][index].float().cuda())
+                                                                                     patches_batch[
+                                                                                         'ground_truth_mip_patch'][
+                                                                                         index].float().cuda())
                             if not torch.any(torch.isnan(mip_loss_patch)):
                                 mip_loss += mip_loss_patch / len(output)
                             # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
@@ -334,30 +352,28 @@ class Pipeline:
                         floss = floss + floss2 + floss_c
 
                     else:
-                        floss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
-
-
+                        loss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
 
                 # except Exception as error:
                 #     self.logger.exception(error)
                 #     sys.exit()
 
-                self.logger.info("Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + " Training..." +
+                self.logger.info("Fold:" + str(fold_index) + " Batch_Index:" + str(batch_index) + " Training..." +
                                  "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(
                     diceLoss_batch) + " diceScore: " + str(diceScore_batch) + " iou: " + str(
-                    IOU_batch) + " mipLoss: " + str(mip_loss))
+                    IOU_batch) + " mipLoss: " + str(mip_loss) + " totalLoss: " + str(loss))
 
                 # Calculating gradients
                 if self.with_apex:
-                    if type(floss) is list:
-                        for i in range(len(floss)):
-                            if i + 1 == len(floss):  # final loss
-                                self.scaler.scale(floss[i]).backward()
+                    if type(loss) is list:
+                        for i in range(len(loss)):
+                            if i + 1 == len(loss):  # final loss
+                                self.scaler.scale(loss[i]).backward()
                             else:
-                                self.scaler.scale(floss[i]).backward(retain_graph=True)
-                        floss = torch.sum(torch.stack(floss))
+                                self.scaler.scale(loss[i]).backward(retain_graph=True)
+                        floss = torch.sum(torch.stack(loss))
                     else:
-                        self.scaler.scale(floss).backward()
+                        self.scaler.scale(loss).backward()
 
                     if self.clip_grads:
                         self.scaler.unscale_(self.optimizer)
@@ -377,14 +393,9 @@ class Pipeline:
 
                     self.optimizer.step()
 
-                if training_batch_index % 50 == 0:  # Save best metric evaluation weights
-                    write_summary(self.writer_training, self.logger, training_batch_index,
-                                  focalTverskyLoss=floss.detach().item(), mipLoss=mip_loss.detach().item(),
-                                  diceLoss=diceLoss_batch, diceScore=diceScore_batch, iou=IOU_batch)
-                training_batch_index += 1
-
                 # Initialising the average loss metrics
                 total_floss += floss.detach().item()
+                total_loss += loss.detach().item()
                 # Compute total DiceLoss, DiceScore and IOU per batch
                 if (num_patches > 0):
                     diceLoss_batch = diceLoss_batch / num_patches
@@ -400,56 +411,71 @@ class Pipeline:
                 if self.deform:
                     del elastic
                 torch.cuda.empty_cache()
+                # Calculate the average loss per batch in one epoch
+                total_floss /= (batch_index + 1.0)
+                total_mipLoss /= (batch_index + 1.0)
 
             # Calculate the average loss per batch in one epoch
             total_floss /= (batch_index + 1.0)
             total_mipLoss /= (batch_index + 1.0)
+            total_loss /= (batch_index + 1.0)
 
             # Calculate the average DiceLoss, DiceScore and IOU per epoch
             total_DiceLoss /= (batch_index + 1.0)
             total_DiceScore /= (batch_index + 1.0)
             total_IOU /= (batch_index + 1.0)
-
             # Print every epoch
-            self.logger.info("Epoch:" + str(epoch) + " Average Training..." +
+            self.logger.info("Fold:" + str(fold_index) + " Average Training..." +
                              "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(
                 total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(
-                total_IOU) + " mipLoss: " + str(total_mipLoss))
-            write_Epoch_summary(self.writer_training, epoch, focalTverskyLoss=total_floss, mipLoss=total_mipLoss,
-                                diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU)
-            self.wandb.log({"focalTverskyLoss_train": total_floss, "mipLoss_train": total_mipLoss})
-
-            save_model(self.checkpoint_path, {
-                'epoch_type': 'last',
-                'epoch': epoch,
-                # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved after validate)
-                'state_dict': self.model.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-                'amp': self.scaler.state_dict()
-            })
-
+                total_IOU) + " mipLoss: " + str(total_mipLoss) + " total_loss" + str(total_loss))
+            write_Epoch_summary(self.writer_training, fold_index, focalTverskyLoss=total_floss, mipLoss=total_mipLoss,
+                                diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU,
+                                total_loss=total_loss)
+            self.wandb.log({"focalTverskyLoss_train": total_floss, "mipLoss_train": total_mipLoss,
+                            "diceScore_train": total_DiceScore, "IOU_train": total_IOU,
+                            "totalLoss_train": total_loss}, step=fold_index)
+            # save_model(self.checkpoint_path, {
+            #     'epoch_type': 'last',
+            #     'epoch': fold_index,
+            #     # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved after validate)
+            #     'state_dict': self.model.state_dict(),
+            #     'optimizer': self.optimizer.state_dict(),
+            #     'amp': self.scaler.state_dict()
+            # })
             torch.cuda.empty_cache()  # to avoid memory errors
-            self.validate(training_batch_index, epoch)
+            self.validate(fold_index, validate_loader)
             torch.cuda.empty_cache()  # to avoid memory errors
+
+            # Discard the current model and load the existing best model
+            if self.load_path is not None:
+                self.load(checkpoint_path=self.load_path)
+            else:
+                self.load()
 
         return self.model
 
-    def validate(self, tainingIndex, epoch):
+    def validate(self, fold_index, validate_loader=None):
         """
         Method to validate
-        :param tainingIndex: Epoch after which validation is performed(can be anything for test)
         :return:
         """
         self.logger.debug('Validating...')
-        print("Validate Epoch: " + str(epoch) + " of " + str(self.num_epochs))
+        print("Validate Fold: " + str(fold_index) + " of " + str(self.k_folds))
 
-        floss, mipLoss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0, 0
+        floss, mipLoss, total_loss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0, 0, 0
         no_patches = 0
         self.model.eval()
-        data_loader = self.validate_loader
+        if validate_loader is None:
+            validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/',
+                                                     label_path=self.DATASET_FOLDER + '/validate_label/',
+                                                     is_train=False, is_validate=True)
+            validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size,
+                                                          shuffle=False,
+                                                          num_workers=self.num_worker, pin_memory=True)
         writer = self.writer_validating
         with torch.no_grad():
-            for index, patches_batch in enumerate(tqdm(data_loader)):
+            for index, patches_batch in enumerate(tqdm(validate_loader)):
                 self.logger.info("loading" + str(index))
                 no_patches += 1
 
@@ -481,56 +507,55 @@ class Pipeline:
                                 for idx, op in enumerate(output):
                                     op_mip = torch.amax(op, 1)
                                     mip_loss_patch += self.mip_loss(op_mip,
-                                                      patches_batch['ground_truth_mip_patch'][idx].float().cuda())
+                                                                    patches_batch['ground_truth_mip_patch'][
+                                                                        idx].float().cuda())
                                 if not torch.any(torch.isnan(mip_loss_patch)):
                                     mipLoss_iter += mip_loss_patch / len(output)
-                                # mipLoss_iter += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_validate_lbl_data, self.focalTverskyLoss, self.patch_size)
                                 floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
                                 level += 1
                         else:
                             self.model.forward(local_batch, training=False)
                             output1 = torch.sigmoid(self.model.sample(testing=True))
                             floss_iter = self.focalTverskyLoss(output1, local_labels)
-                            # elbo = self.model.elbo(local_labels)
-                            # reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
-                            # floss_iter = -elbo + 1e-5 * reg_loss
                 except Exception as error:
                     self.logger.exception(error)
 
                 floss += floss_iter
                 mipLoss += mipLoss_iter
+                total_loss += (self.floss_coeff * floss_iter) + (self.mip_loss_coeff * mipLoss_iter)
                 dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 dloss += dl.detach().item()
 
                 # Log validation losses
                 self.logger.info("Batch_Index:" + str(index) + " Validation..." +
                                  "\n focalTverskyLoss:" + str(floss) + "\n DiceLoss: " + str(
-                    dloss) + "\n MipLoss: " + str(mipLoss))
+                    dloss) + "\n MipLoss: " + str(mipLoss) + "\n totalLoss: " + str(total_loss))
 
         # Average the losses
         floss = floss / no_patches
         mipLoss = mipLoss / no_patches
+        total_loss = total_loss / no_patches
         dloss = dloss / no_patches
         process = ' Validating'
-        self.logger.info("Epoch:" + str(tainingIndex) + process + "..." +
+        self.logger.info("Fold:" + str(fold_index) + process + "..." +
                          "\n FocalTverskyLoss:" + str(floss) +
                          "\n DiceLoss:" + str(dloss) +
-                         "\n MipLoss:" + str(mipLoss))
+                         "\n MipLoss:" + str(mipLoss) +
+                         "\n TotalLoss:" + str(total_loss))
 
-        write_summary(writer, self.logger, tainingIndex, local_labels[0][0][6], output1[0][0][6], floss, mipLoss, dloss,
-                      0, 0)
+        write_Epoch_summary(writer, fold_index, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss=dloss, diceScore=0,
+                            iou=0, total_loss=total_loss)
+        self.wandb.log({"focalTverskyLoss_val": floss, "mipLoss_val": mipLoss, "diceLoss_val": dloss,
+                        "totalLoss_val": total_loss}, step=fold_index)
 
-        write_Epoch_summary(writer, epoch, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss=dloss, diceScore=0, iou=0)
-        self.wandb.log({"focalTverskyLoss_val": floss, "mipLoss_val": mipLoss})
-
-        if self.LOWEST_LOSS > floss:  # Save best metric evaluation weights
-            self.LOWEST_LOSS = floss
+        if self.LOWEST_LOSS > total_loss:  # Save best metric evaluation weights
+            self.LOWEST_LOSS = total_loss
             self.logger.info(
-                'Best metric... @ epoch:' + str(tainingIndex) + ' Current Lowest loss:' + str(self.LOWEST_LOSS))
+                'Best metric... @ fold:' + str(fold_index) + ' Current Lowest loss:' + str(self.LOWEST_LOSS))
 
             save_model(self.checkpoint_path, {
                 'epoch_type': 'best',
-                'epoch': epoch,
+                'epoch': fold_index,
                 'state_dict': self.model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
                 'amp': self.scaler.state_dict()})
@@ -606,9 +631,11 @@ class Pipeline:
                                 op_mip = op_mip.detach().cpu().squeeze().numpy()
                                 true_mip = true_mip.detach().cpu().squeeze().numpy()
                                 Image.fromarray((op_mip * 255).astype('uint8'), 'L').save(
-                                    os.path.join(result_root, "level_" + str(level) + "_patch_" + str(index) + "_op_mip.tif"))
+                                    os.path.join(result_root,
+                                                 "level_" + str(level) + "_patch_" + str(index) + "_op_mip.tif"))
                                 Image.fromarray((true_mip * 255).astype('uint8'), 'L').save(
-                                    os.path.join(result_root, "level_" + str(level) + "_patch_" + str(index) + "_true_mip.tif"))
+                                    os.path.join(result_root,
+                                                 "level_" + str(level) + "_patch_" + str(index) + "_true_mip.tif"))
                                 test_logger.info("Testing with mip..." +
                                                  "\n floss:" + str(floss) +
                                                  "\n mip_loss:" + str(mip_loss_patch))
@@ -836,4 +863,3 @@ class Pipeline:
         subject = tio.Subject(**subdict)
 
         self.test(predict_logger, save_results=True, test_subjects=[subject])
-

@@ -38,12 +38,13 @@ class SRDataset(Dataset):
 
     def __init__(self, logger, patch_size, dir_path, label_dir_path, stride_depth=16, stride_length=32, stride_width=32,
                  Size=None, fly_under_percent=None, patch_size_us=None, return_coords=False, pad_patch=True,
-                 pre_interpolate=None, norm_data=True, pre_load=False):
+                 pre_interpolate=None, norm_data=True, pre_load=False, files_us=None):
         self.patch_size = patch_size  # -1 = full vol
         self.stride_depth = stride_depth
         self.stride_length = stride_length
         self.stride_width = stride_width
         self.size = Size
+        self.files_us = files_us
         self.logger = logger
         self.fly_under_percent = fly_under_percent  # if None, then use already undersampled data. Gets priority over patch_size_us. They are both mutually exclusive
         self.return_coords = return_coords
@@ -100,9 +101,10 @@ class SRDataset(Dataset):
                         self.STARTINDEX_DEPTH_US, self.STARTINDEX_LENGTH_US, self.STARTINDEX_WIDTH_US]
         self.data = pd.DataFrame(columns=column_names)
 
-        files_us = glob.glob(dir_path + '/**/*.nii', recursive=True)
-        files_us += glob.glob(dir_path + '/**/*.nii.gz', recursive=True)
-        for imageFileName in files_us:
+        if self.files_us is None:
+            self.files_us = glob.glob(dir_path + '/**/*.nii', recursive=True)
+            self.files_us += glob.glob(dir_path + '/**/*.nii.gz', recursive=True)
+        for imageFileName in self.files_us:
             labelFileName = imageFileName.replace(dir_path[:-1], label_dir_path[
                                                                  :-1])  # [:-1] is needed to remove the trailing slash for shitty windows
 

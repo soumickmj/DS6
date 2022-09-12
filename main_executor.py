@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-
 """
 
 import argparse
@@ -14,7 +13,6 @@ from pipeline import Pipeline
 from Utils.logger import Logger
 from Utils.model_manager import getModel
 from Utils.vessel_utils import load_model, load_model_with_amp
-import wandb
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -30,8 +28,6 @@ torch.backends.cudnn.benchmark = False
 torch.manual_seed(2020)
 np.random.seed(2020)
 random.seed(2020)
-
-wandb.init(project="DS6_VesselSeg2", entity="ds6_vessel_seg2")
 
 # torch.autograd.set_detect_anomaly(True)
 
@@ -137,11 +133,11 @@ if __name__ == '__main__':
                         help="Number of worker threads")
     parser.add_argument("-floss_coeff",
                         type=float,
-                        default=1.0,
+                        default=0.7,
                         help="Loss coefficient for floss in total loss")
     parser.add_argument("-mip_loss_coeff",
                         type=float,
-                        default=0.5,
+                        default=0.3,
                         help="Loss coefficient for mip_loss in total loss")
     parser.add_argument("-floss_param_smooth",
                         type=float,
@@ -167,6 +163,13 @@ if __name__ == '__main__':
                         type=float,
                         default=0.7,
                         help="Loss coefficient for mip_loss_param_alpha")
+    parser.add_argument("-k_folds",
+                        type=int,
+                        default=5,
+                        help="Set the number of folds for cross validation")
+    parser.add_argument("-wandb",
+                        default=True,
+                        help="Set this to true to include wandb logging")
 
     args = parser.parse_args()
 
@@ -187,16 +190,21 @@ if __name__ == '__main__':
 
     logger = Logger(MODEL_NAME, LOGGER_PATH).get_logger()
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
+    wandb = None
+    if str(args.wandb).lower() == "true":
+        import wandb
 
-    wandb.config = {
-        "learning_rate": args.learning_rate,
-        "epochs": args.num_epochs,
-        "batch_size": args.batch_size,
-        "patch_size": args.patch_size,
-        "samples_per_epoch": args.samples_per_epoch,
-        "mip_loss_coeff": args.mip_loss_coeff,
-        "floss_coeff": args.floss_coeff
-    }
+        wandb.init(project="DS6_VesselSeg2", entity="ds6_vessel_seg2", notes=args.model_name)
+        wandb.config = {
+            "learning_rate": args.learning_rate,
+            "epochs": args.num_epochs,
+            "batch_size": args.batch_size,
+            "patch_size": args.patch_size,
+            "samples_per_epoch": args.samples_per_epoch,
+            "mip_loss_coeff": args.mip_loss_coeff,
+            "floss_coeff": args.floss_coeff
+        }
+
 
     # Model
     model = getModel(args.model, OUTPUT_PATH + "/" + MODEL_NAME)
@@ -206,7 +214,7 @@ if __name__ == '__main__':
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
 
     pipeline = Pipeline(cmd_args=args, model=model, logger=logger,
-                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, 
+                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH,
                         writer_training=writer_training, writer_validating=writer_validating, wandb=wandb)
 
     # loading existing checkpoint if supplied
