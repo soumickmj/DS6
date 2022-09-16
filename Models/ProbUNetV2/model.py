@@ -597,16 +597,30 @@ class ProbabilisticSegmentationNet(ConvModule):
         self._prior = None
         self._posterior = None
 
-    def forward(self, input_, seg=None, make_onehot=True, make_onehot_classes=None, newaxis=False):
+    def forward(self, input_, seg=None, make_onehot=True, make_onehot_classes=None, newaxis=False, distlossN=0):
         """Forward pass includes reparametrization sampling during training, otherwise it'll just take the prior mean."""
 
         self.encode_prior(input_)
-        if self.training:
-            self.encode_posterior(input_, seg, make_onehot, make_onehot_classes, newaxis)
-            sample = self.posterior.rsample()
+
+        if distlossN == 0:
+            if self.training:
+                self.encode_posterior(input_, seg, make_onehot, make_onehot_classes, newaxis)
+                sample = self.posterior.rsample()
+            else:
+                sample = self.prior.loc
+            return self.task_net(input_, sample, store_activations=not self.training)
         else:
-            sample = self.prior.loc
-        return self.task_net(input_, sample, store_activations=not self.training)
+            if self.training:
+                self.encode_posterior(input_, seg, make_onehot, make_onehot_classes, newaxis)
+                segs = []
+                for i in range(distlossN):
+                    sample = self.posterior.rsample()
+                    segs.append(self.task_net(input_, sample, store_activations=not self.training))
+                return torch.concat(segs, dim=0)
+            else: #I'm not totally sure about this!!
+                sample = self.prior.loc
+                return self.task_net(input_, sample, store_activations=not self.training)
+
 
     def encode_prior(self, input_):
 

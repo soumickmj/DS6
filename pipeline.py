@@ -21,9 +21,12 @@ from torch import nn, optim, distributions
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 
+# from Utils.fid.fastfid import fastfid 
+
 from Evaluation.evaluate import (IOU, Dice, FocalTverskyLoss, getLosses,
                                  getMetric)
 from Utils.elastic_transform import RandomElasticDeformation, warp_image
+from Utils.fid.fidloss import FastFID
 from Utils.result_analyser import *
 from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 create_mask, load_model, load_model_with_amp,
@@ -60,6 +63,7 @@ class Pipeline:
         self.clip_grads = cmd_args.clip_grads
         self.with_apex = cmd_args.apex
         self.deform = cmd_args.deform
+        self.distloss = cmd_args.distloss
 
         # image input parameters
         if bool(cmd_args.slice2D_shape):
@@ -104,6 +108,10 @@ class Pipeline:
             self.criterion_segmentation_weight = 1.0
         else:
             self.ProbFlag = 0
+
+        if self.plauslabels and self.ProbFlag and self.distloss:
+            self.op_distloss = FastFID(useInceptionNet=cmd_args.fidloss_pure,batch_size=cmd_args.batch_size_fidloss, gradient_checkpointing=True)
+            self.op_distloss.cuda()
 
         if cmd_args.train: #Only if training is to be performed
             traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set, plauslabels_path=self.DATASET_FOLDER + '/train_plausiblelabel/' if cmd_args.plauslabels else "")
@@ -195,6 +203,15 @@ class Pipeline:
                 else:
                     lbl = "label"
                 local_labels = patches_batch[lbl][tio.DATA].float().cuda()
+                if self.plauslabels and self.distloss:
+                    local_plauslabels = []
+                    for l in labels:
+                        local_plauslabels.append(patches_batch[l][tio.DATA])
+                    local_plauslabels = torch.concat(local_plauslabels, dim=0).float().cuda()
+                    if self.dimMode == 3:
+                        local_plauslabels = torch.movedim(local_plauslabels, -1, -3) 
+                    else:
+                        local_plauslabels = local_plauslabels.squeeze(-1)
                 
                 if self.dimMode == 3:
                     local_batch = torch.movedim(local_batch, -1, -3)
@@ -244,8 +261,12 @@ class Pipeline:
                         # else:
                         #     floss = -elbo + self.model.reg_alpha * reg_loss
                     else:
-                        output = self.model(local_batch, local_labels, make_onehot=False)
-                        loss_segmentation = self.criterion_segmentation(output, local_labels).sum()
+                        if not self.plauslabels or (self.plauslabels and not self.distloss):
+                            output = self.model(local_batch, local_labels, make_onehot=False)
+                            loss_segmentation = self.criterion_segmentation(output, local_labels).sum()
+                        else:
+                            output = self.model(local_batch, local_labels, make_onehot=False, distlossN=len(labels))
+                            loss_segmentation = self.op_distloss(output, local_plauslabels)
                         loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum()
                         floss = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
 

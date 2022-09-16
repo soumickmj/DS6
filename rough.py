@@ -5,6 +5,10 @@ import shutil
 import os
 from tqdm import tqdm
 
+from Utils.fid.fidloss import PartialResNeXt
+
+ob = PartialResNeXt()
+
 root = "/project/schatter/FranziVSeg/Data/Forrest_Organised/Fold0/test_plausablelabel"
 files = glob(root+"/**.nii.gz")
 root_orig = "/project/schatter/FranziVSeg/Data/Forrest_Organised/Fold0/test"

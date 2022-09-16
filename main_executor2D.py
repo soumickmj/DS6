@@ -103,13 +103,16 @@ if __name__ == '__main__':
                         default=False,
                         action="store_true",
                         help="To use deformation for training")
+    parser.add_argument('-distloss',
+                        default=False,
+                        help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
     parser.add_argument('-apex',
                         default=True,
                         help="To use half precision on model weights.")
 
     parser.add_argument("-batch_size",
                         type=int,
-                        default=14,
+                        default=4,
                         help="Batch size for training")
     parser.add_argument("-num_epochs",
                         type=int,
