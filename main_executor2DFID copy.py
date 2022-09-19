@@ -73,10 +73,10 @@ if __name__ == '__main__':
                              "Example: /home/output/")
 
     parser.add_argument('-train',
-                        default=True,
+                        default=False,
                         help="To train the model")
     parser.add_argument('-test',
-                        default=False,
+                        default=True,
                         help="To test the model")
     parser.add_argument("-n_prob_test",
                         type=int,
@@ -93,8 +93,8 @@ if __name__ == '__main__':
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
     parser.add_argument('-load_path',
-                        # default="/media/Enterprise/FranziVSeg/Output/Forrest_ManualSeg_Fold0/ProbU2Dv2_DistLossPureFID_At2_pLBL4TrainANDMan4Val/checkpoint",
-                        default="",
+                        default="/media/Enterprise/FranziVSeg/Output/Forrest_ManualSeg_Fold0/ProbU2Dv2_DistLossPureFID_At2_pLBL4TrainANDMan4Val/checkpoint",
+                        # default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('-load_best',
                         default=True,
@@ -158,7 +158,7 @@ if __name__ == '__main__':
                         help="Number of samples per epoch")
     parser.add_argument("-num_worker",
                         type=int,
-                        default=0,
+                        default=5,
                         help="Number of worker threads")
 
     args = parser.parse_args()

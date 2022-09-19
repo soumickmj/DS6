@@ -2,7 +2,7 @@
 """
 
 """
-
+import sys
 import os
 import random
 import sys
@@ -20,11 +20,13 @@ from skimage.filters import threshold_otsu
 from torch import nn, optim, distributions
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
+from scipy.stats import energy_distance
 
 # from Utils.fid.fastfid import fastfid 
 
 from Evaluation.evaluate import (IOU, Dice, FocalTverskyLoss, getLosses,
                                  getMetric)
+from Models.ProbUNetV2.eval import calc_energy_distances, get_energy_distance_components
 from Utils.elastic_transform import RandomElasticDeformation, warp_image
 from Utils.fid.fidloss import FastFID
 from Utils.result_analyser import *
@@ -60,10 +62,12 @@ class Pipeline:
         self.plauslabel_mode = cmd_args.plauslabel_mode
         self.model_name = cmd_args.model_name
 
+        self.load_best = cmd_args.load_best
         self.clip_grads = cmd_args.clip_grads
         self.with_apex = cmd_args.apex
         self.deform = cmd_args.deform
         self.distloss = cmd_args.distloss
+        self.n_prob_test = cmd_args.n_prob_test
 
         # image input parameters
         if bool(cmd_args.slice2D_shape):
@@ -108,6 +112,9 @@ class Pipeline:
             self.criterion_segmentation_weight = 1.0
         else:
             self.ProbFlag = 0
+
+        if self.ProbFlag > 0:
+            self.fid_calc = FastFID(useInceptionNet=True, batch_size=-1, gradient_checkpointing=True)
 
         if self.plauslabels and self.ProbFlag and self.distloss:
             self.op_distloss = FastFID(useInceptionNet=cmd_args.fidloss_pure,batch_size=cmd_args.batch_size_fidloss, gradient_checkpointing=True)
@@ -396,7 +403,7 @@ class Pipeline:
                 no_patches += 1
 
                 local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
-                if self.plauslabels and self.plauslabel_mode>=3:
+                if self.plauslabels and self.plauslabel_mode>=3 and not self.distloss:
                     labels = [k for k in patches_batch.keys() if "p_label" in k]
                     if self.plauslabel_mode == 3:
                         labels += ["label"]
@@ -404,6 +411,18 @@ class Pipeline:
                 else:
                     lbl = "label"
                 local_labels = patches_batch[lbl][tio.DATA].float().cuda()
+                if self.plauslabels and self.distloss:
+                    labels = [k for k in patches_batch.keys() if "p_label" in k]
+                    if self.plauslabel_mode in [1,3]:
+                        labels += ["label"]
+                    local_plauslabels = []
+                    for l in labels:
+                        local_plauslabels.append(patches_batch[l][tio.DATA])
+                    local_plauslabels = torch.concat(local_plauslabels, dim=0).float().cuda()
+                    if self.dimMode == 3:
+                        local_plauslabels = torch.movedim(local_plauslabels, -1, -3) 
+                    else:
+                        local_plauslabels = local_plauslabels.squeeze(-1)
 
                 if self.dimMode == 3:
                     local_batch = torch.movedim(local_batch, -1, -3)
@@ -440,15 +459,27 @@ class Pipeline:
                             reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
                             floss_iter = -elbo + self.model.reg_alpha * reg_loss
                         else:
-                            output1 = self.model(local_batch, local_labels, make_onehot=False)
-                            floss_iter = self.criterion_segmentation(output1, local_labels).sum() #as there is no loss_latent, this is used as the final loss. 
-                            # loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum() #posterior isn't present when there is no gradient (in eval mode)
-                            # floss_iter = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
+                            if not self.plauslabels or (self.plauslabels and not self.distloss):
+                                output1 = self.model.sample_prior(N=1, out_device=local_batch.device, input_=local_batch)
+                                floss_iter = self.criterion_segmentation(output1, local_labels).sum()
+                                # loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum() #posterior isn't present when there is no gradient (in eval mode)
+                                # floss_iter = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
+                            else:
+                                output = self.model.sample_prior(N=len(labels), out_device=local_batch.device, input_=local_batch)
+                                try:
+                                    floss_iter = self.op_distloss(torch.concat(output, dim=0), local_plauslabels).detach().item()
+                                except:
+                                    pass
+                                output1 = random.choice(output)
+
+                                #as there is no loss_latent, this is used as the final loss. 
+                                # loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum() #posterior isn't present when there is no gradient (in eval mode)
+                                # floss_iter = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
                         
                 except Exception as error:
                     self.logger.exception(error)
-
-                floss += floss_iter.detach().item()
+                
+                floss += floss_iter
                 if self.ProbFlag == 0:
                     dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 else:
@@ -481,7 +512,7 @@ class Pipeline:
                 'optimizer': self.optimizer.state_dict(),
                 'amp': self.scaler.state_dict()})
 
-    def test(self, test_logger, save_results=True, test_subjects=None):
+    def test(self, test_logger, save_results=True, test_subjects=None): #for testing models other than Probabilistic UNets
         test_logger.debug('Testing...')
 
         if test_subjects is None:
@@ -493,7 +524,7 @@ class Pipeline:
         overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
 
         df = pd.DataFrame(columns = ["Subject", "Dice", "IoU"])
-        result_root = os.path.join(self.output_path, self.model_name, "results")
+        result_root = os.path.join(self.output_path, self.model_name, "results_"+("best" if self.load_best else "last"))
         os.makedirs(result_root, exist_ok=True)
 
         self.model.eval()
@@ -529,24 +560,13 @@ class Pipeline:
                         local_labels = local_labels.squeeze(-1)
 
                     with autocast(enabled=self.with_apex):
-                        if not self.ProbFlag:
+                        if self.ProbFlag == 0:
                             output = self.model(local_batch)
                             if type(output) is tuple or type(output) is list:
                                 output = output[0]
                             output = torch.sigmoid(output).detach().cpu()
-                        elif self.ProbFlag == 1:
-                            self.model.forward(local_batch, training=False)
-                            output = self.model.sample(testing=True).detach().cpu() #TODO: need to check whether sigmoid is needed for prob
-                        else:
-                            output = self.model(local_batch, local_labels, make_onehot=False)
-                            
-                            self.model.encode_posterior(local_batch, local_labels, make_onehot=False)
-                            reference_reconstruction = self.model.reconstruct(out_device="cpu")
-                            reference_kl = distributions.kl_divergence(self.model.posterior, self.model.prior)
-                            
-                            # loss_segmentation = self.criterion_segmentation(output1, local_labels).sum()
-                            # loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum()
-                            # floss_iter = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
+                        else:                            
+                            sys.exit("This test function is not capable of testing Probabilistic UNets. Please use the test_prob functin.")
 
                     if self.dimMode == 2:
                         output = output.unsqueeze(-3)
@@ -588,6 +608,185 @@ class Pipeline:
                                 "\n JacardIndex:" + str(iou3D))
 
         df.to_csv(os.path.join(result_root, "Results_Main.csv"))
+
+    def test_prob(self, test_logger, save_results=True, test_subjects=None): #for testing Probabilistic UNets
+        test_logger.debug('Testing...')
+
+        if test_subjects is None:
+            test_folder_path = self.DATASET_FOLDER + '/test/'
+            test_label_path = self.DATASET_FOLDER + '/test_label/'
+            test_plauslabel_path = self.DATASET_FOLDER + '/test_plausiblelabel/'
+
+            test_subjects = self.create_TIOSubDS(vol_path=test_folder_path, label_path=test_label_path, get_subjects_only=True, plauslabels_path=test_plauslabel_path if os.path.exists(test_plauslabel_path) else "")
+
+        overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
+
+        df = pd.DataFrame(columns = ["Subject", "ProbPredID", "Dice", "IoU"])
+        dfProb = pd.DataFrame(columns = ["Subject", "maxDice", "maxIoU", "DistLoss", "FID", "GenEngDist"])
+        result_root = os.path.join(self.output_path, self.model_name, "results_"+("best" if self.load_best else "last"))
+        os.makedirs(result_root, exist_ok=True)
+
+        self.model.eval()
+    
+        with torch.no_grad():
+            masterResults = []
+            masterGTs = []
+            for test_subject in test_subjects:
+                if 'label' in test_subject:
+                    label = test_subject['label'][tio.DATA].float().squeeze().numpy()
+                    del test_subject['label']
+                else:
+                    label = None
+
+                labels = [k for k in test_subject.keys() if "p_label" in k]
+                plauslabels = []
+                for l in labels:
+                    plauslabels.append(test_subject[l][tio.DATA])
+                if len(plauslabels) > 0:
+                    plauslabels = torch.concat(plauslabels, dim=0).float()
+
+                subjectname = test_subject['subjectname']
+                del test_subject['subjectname']
+
+                grid_sampler = tio.inference.GridSampler(
+                                                            test_subject,
+                                                            self.patch_size,
+                                                            overlap,
+                                                        )
+                                        
+                aggregators = []
+                for _ in range(self.n_prob_test):
+                    aggregators.append(tio.inference.GridAggregator(grid_sampler, overlap_mode="average"))
+
+                patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.batch_size, shuffle=False, num_workers=self.num_worker)
+
+                distloss = 0
+                for index, patches_batch in enumerate(tqdm(patch_loader)):
+                    local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                    # local_labels = patches_batch['label'][tio.DATA].float().cuda()
+                    locations = patches_batch[tio.LOCATION]
+
+                    labels = [k for k in patches_batch.keys() if "p_label" in k]
+                    local_plauslabels = []
+                    for l in labels:
+                        local_plauslabels.append(patches_batch[l][tio.DATA])
+                    if len(local_plauslabels) > 0:
+                        local_plauslabels = torch.concat(local_plauslabels, dim=0).float().cuda()
+                        if self.dimMode == 3:
+                            local_plauslabels = torch.movedim(local_plauslabels, -1, -3) 
+                        else:
+                            local_plauslabels = local_plauslabels.squeeze(-1)
+
+                    if self.dimMode == 3:
+                        local_batch = torch.movedim(local_batch, -1, -3)
+                        # local_labels = torch.movedim(local_labels, -1, -3) 
+                    else:
+                        local_batch = local_batch.squeeze(-1)
+                        # local_labels = local_labels.squeeze(-1)
+
+                    with autocast(enabled=self.with_apex):
+                        if self.ProbFlag == 0:
+                           sys.exit("This test function is only for testing Probabilistic UNets. Please use the test() function for the rest of the models.")
+                        elif self.ProbFlag == 1:
+                            sys.exit("Testing function for ProbFlag 1 (ProbUNetV1) is not ready!")
+                            self.model.forward(local_batch, training=False)
+                            output = self.model.sample(testing=True).detach().cpu() #TODO: need to check whether sigmoid is needed for prob
+                        else:                            
+                            outputs = self.model.sample_prior(N=self.n_prob_test, out_device=local_batch.device, input_=local_batch)
+                            if len(local_plauslabels) > 0:
+                                try:
+                                    distloss += self.op_distloss(torch.concat(outputs, dim=0), local_plauslabels).detach().item()
+                                except:
+                                    pass
+
+                    # wandb.log({"loss": floss.detach().item()})
+
+                    for nP in range(self.n_prob_test):
+                        output = outputs[nP].detach().cpu()
+                        if self.dimMode == 2:
+                            output = output.unsqueeze(-3)
+                        output = torch.movedim(output, -3, -1).type(local_batch.type()) 
+                        aggregators[nP].add_batch(output, locations)
+                        del output
+                    del outputs
+
+                results = []
+                maxDice = 0
+                maxIoU = 0
+                for nP in range(self.n_prob_test):
+
+                    predicted = aggregators[nP].get_output_tensor().squeeze().numpy()
+
+                    try:
+                        thresh = threshold_otsu(predicted)
+                        result = predicted > thresh
+                    except Exception as error:
+                        test_logger.exception(error)
+                        result = predicted > 0.5  # exception will be thrown only if input image seems to have just one color 1.0.
+                    result = result.astype(np.float32)
+                    results.append(result)
+                    del predicted
+                    
+                    if label is not None:
+                        datum = {"Subject": subjectname, "ProbPredID": nP}
+                        dice3D = dice(result, label)
+                        iou3D = IoU(result, label)
+                        datum = pd.DataFrame.from_dict({**datum, "Dice": [dice3D], "IoU": [iou3D]})
+                        df = pd.concat([df, datum], ignore_index=True)
+                        if maxDice < dice3D:
+                            maxDice = dice3D
+                        if maxIoU < iou3D:
+                            maxIoU = iou3D
+
+                    if save_results:
+                        save_nifti(result, os.path.join(result_root, f"{subjectname}_Segmentation_{nP}.nii.gz"))
+
+                        resultMIP = np.max(result, axis=-1)
+                        Image.fromarray((resultMIP*255).astype('uint8'), 'L').save(os.path.join(result_root, f"{subjectname}_Segmentation_{nP}_MIP.tif"))
+
+                        if label is not None:
+                            overlay = create_diff_mask_binary(result, label)
+                            save_tifRGB(overlay, os.path.join(result_root, f"{subjectname}_Segmentation_{nP}_colour.tif"))
+                            del overlay
+
+                            overlayMIP = create_diff_mask_binary(resultMIP, np.max(label, axis=-1))
+                            Image.fromarray(overlayMIP.astype('uint8'), 'RGB').save(os.path.join(result_root, f"{subjectname}_Segmentation_{nP}_colourMIP.tif"))
+                            del overlayMIP, resultMIP
+
+                    test_logger.info("Testing "+subjectname+"..." +
+                                    "\n Dice:" + str(dice3D) +
+                                    "\n JacardIndex:" + str(iou3D))
+                del aggregators
+
+                datumProb = {"Subject": subjectname, "maxDice": maxDice, "maxIoU": maxIoU}
+                if len(plauslabels) > 0:
+                    gt_segs = plauslabels.numpy()
+                    # masterGTs.append(gt_segs)
+                    seg_samples = np.stack(results, axis=0)
+                    # masterResults.append(seg_samples)
+                    fidVal = self.fid_calc(torch.from_numpy(seg_samples), torch.from_numpy(gt_segs)).item()
+                    genEDist = calc_energy_distances(get_energy_distance_components(gt_segs, seg_samples, eval_class_ids=[1]))
+                    datumProb = pd.DataFrame.from_dict({**datumProb, "DistLoss": [distloss/len(patch_loader)], "FID": [fidVal], "GenEngDist": [genEDist]})
+                    del gt_segs, seg_samples, plauslabels
+                else:
+                    datumProb = pd.DataFrame.from_dict(datumProb)
+                dfProb = pd.concat([dfProb, datumProb], ignore_index=True)
+
+        wandb.summary['test_'+("best" if self.load_best else "last")+'_maxDice'] = datumProb.maxDice.median()
+        wandb.summary['test_'+("best" if self.load_best else "last")+'_maxIoU'] = datumProb.maxIoU.median()
+        wandb.summary['test_'+("best" if self.load_best else "last")+'_DistLoss'] = datumProb.DistLoss.median()
+        wandb.summary['test_'+("best" if self.load_best else "last")+'_FID'] = datumProb.FID.median()
+        wandb.summary['test_'+("best" if self.load_best else "last")+'_genEDist'] = datumProb.genEDist.median()
+
+        # masterGTs = np.concatenate(masterGTs, axis=0)
+        # masterResults = np.concatenate(masterResults, axis=0)
+        # fidVal = self.fid_calc(torch.from_numpy(masterResults), torch.from_numpy(masterGTs)).item()
+        # genEDist = calc_energy_distances(get_energy_distance_components(masterGTs, masterResults, eval_class_ids=[1]))
+        # datumProb = pd.DataFrame.from_dict({"Subject": "TotalDistCompare", "maxDice": -1, "maxIoU": -1, "DistLoss": -1, "FID": fidVal, "GenEngDist": -1})
+        # dfProb = pd.concat([dfProb, datumProb], ignore_index=True)
+
+        df.to_csv(os.path.join(result_root, "Results_Main.csv"))
+        dfProb.to_csv(os.path.join(result_root, "Results_Probabilistic.csv"))
 
     def predict(self, image_path, label_path, predict_logger):
         image_name = os.path.basename(image_path).split('.')[0]
