@@ -78,6 +78,10 @@ if __name__ == '__main__':
     parser.add_argument('-test',
                         default=False,
                         help="To test the model")
+    parser.add_argument("-n_prob_test",
+                        type=int,
+                        default=10,
+                        help="N number of predictions are to be optained during testing for the ProbUNets")
     parser.add_argument('-predict',
                         default=False,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
@@ -106,6 +110,9 @@ if __name__ == '__main__':
     parser.add_argument('-distloss',
                         default=False,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
+    parser.add_argument('-fidloss_pure',
+                        default=True,
+                        help="To pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet), set it to False for Fréchet ResNeXt Distance (trained on single-channel MRIs)")
     parser.add_argument('-apex',
                         default=True,
                         help="To use half precision on model weights.")
@@ -114,6 +121,10 @@ if __name__ == '__main__':
                         type=int,
                         default=4,
                         help="Batch size for training")
+    parser.add_argument("-batch_size_fidloss",
+                        type=int,
+                        default=4,
+                        help="Batch size for FID loss computation. Set it to -1 if the complete batch is supposed to be processed together")
     parser.add_argument("-num_epochs",
                         type=int,
                         default=500,
@@ -197,9 +208,12 @@ if __name__ == '__main__':
         torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.test:
-        if args.load_best:
-            pipeline.load(load_best=True)
-        pipeline.test(test_logger=test_logger)
+        # if args.load_best:
+        #     pipeline.load(load_best=True)
+        if pipeline.ProbFlag in [1, 2]:
+            pipeline.test_prob(test_logger=test_logger)
+        else:
+            pipeline.test(test_logger=test_logger)
         torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.predict:
