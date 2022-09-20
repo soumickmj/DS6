@@ -28,90 +28,90 @@ __status__ = "Production"
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-model",
+    parser.add_argument("--model",
                         type=int,
                         default=1,
                         help="1{U-Net}; \n"
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net};")
-    parser.add_argument("-model_name",
+    parser.add_argument("--model_name",
                         default="Model_v1",
                         help="Name of the model")
-    parser.add_argument("-dataset_path",
+    parser.add_argument("--dataset_path",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
                              "Example: /home/dataset/")
-    parser.add_argument("-output_path",
+    parser.add_argument("--output_path",
                         help="Folder path to store output "
                              "Example: /home/output/")
 
-    parser.add_argument('-train',
-                        default=True,
+    parser.add_argument('--train',
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To train the model")
-    parser.add_argument('-test',
-                        default=True,
+    parser.add_argument('--test',
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To test the model")
-    parser.add_argument('-predict',
-                        default=False,
+    parser.add_argument('--predict',
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
-    parser.add_argument('-predictor_path',
+    parser.add_argument('--predictor_path',
                         default="",
                         help="Path to the input image to predict an output, ex:/home/test/ww25.nii ")
-    parser.add_argument('-predictor_label_path',
+    parser.add_argument('--predictor_label_path',
                         default="",
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
-    parser.add_argument('-load_path',
+    parser.add_argument('--load_path',
                         default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint/ ")
-    parser.add_argument('-load_best',
-                        default=False,
+    parser.add_argument('--load_best',
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="Specifiy whether to load the best checkpoiont or the last")
-    parser.add_argument('-deform',
-                        default=False,
+    parser.add_argument('--deform',
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="To use deformation for training")
-    parser.add_argument('-apex',
-                        default=True,
+    parser.add_argument('--apex',
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To use half precision on model weights.")
 
-    parser.add_argument("-batch_size",
+    parser.add_argument("--batch_size",
                         type=int,
                         default=20,
                         help="Batch size for training")
-    parser.add_argument("-num_epochs",
+    parser.add_argument("--num_epochs",
                         type=int,
                         default=50,
                         help="Number of epochs for training")
-    parser.add_argument("-learning_rate",
+    parser.add_argument("--learning_rate",
                         type=float,
                         default=0.01,
                         help="Learning rate")
-    parser.add_argument("-patch_size",
+    parser.add_argument("--patch_size",
                         type=int,
                         default=64,
                         help="Patch size of the input volume")
-    parser.add_argument("-stride_depth",
+    parser.add_argument("--stride_depth",
                         type=int,
                         default=16,
                         help="Strides for dividing the input volume into patches in depth dimension")
-    parser.add_argument("-stride_width",
+    parser.add_argument("--stride_width",
                         type=int,
                         default=32,
                         help="Strides for dividing the input volume into patches in width dimension")
-    parser.add_argument("-stride_length",
+    parser.add_argument("--stride_length",
                         type=int,
                         default=32,
                         help="Strides for dividing the input volume into patches in length dimension")
-    parser.add_argument("-samples_per_epoch",
+    parser.add_argument("--samples_per_epoch",
                         type=int,
                         default=8000,
                         help="Number of samples per epoch")
-    parser.add_argument("-num_worker",
+    parser.add_argument("--num_worker",
                         type=int,
                         default=8,
                         help="Number of worker threads")
 
-    parser.add_argument("-set_number",
+    parser.add_argument("--set_number",
                         default=6,
                         help="Set number to select the folds")
 
