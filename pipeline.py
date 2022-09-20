@@ -766,7 +766,7 @@ class Pipeline:
                     # masterResults.append(seg_samples)
                     fidVal = self.fid_calc(torch.from_numpy(seg_samples), torch.from_numpy(gt_segs)).item()
                     genEDist = calc_energy_distances(get_energy_distance_components(gt_segs, seg_samples, eval_class_ids=[1]))
-                    datumProb = pd.DataFrame.from_dict({**datumProb, "DistLoss": [distloss/len(patch_loader)], "FID": [fidVal], "GenEngDist": [genEDist]})
+                    datumProb = pd.DataFrame.from_dict({**datumProb, "DistLoss": [distloss], "FID": [fidVal], "GenEngDist": [genEDist]})
                     del gt_segs, seg_samples, plauslabels
                 else:
                     datumProb = pd.DataFrame.from_dict(datumProb)
@@ -776,7 +776,7 @@ class Pipeline:
         wandb.summary['test_'+("best" if self.load_best else "last")+'_maxIoU'] = datumProb.maxIoU.median()
         wandb.summary['test_'+("best" if self.load_best else "last")+'_DistLoss'] = datumProb.DistLoss.median()
         wandb.summary['test_'+("best" if self.load_best else "last")+'_FID'] = datumProb.FID.median()
-        wandb.summary['test_'+("best" if self.load_best else "last")+'_genEDist'] = datumProb.genEDist.median()
+        wandb.summary['test_'+("best" if self.load_best else "last")+'_genEDist'] = datumProb.GenEngDist.median()
 
         # masterGTs = np.concatenate(masterGTs, axis=0)
         # masterResults = np.concatenate(masterResults, axis=0)
