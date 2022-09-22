@@ -3,9 +3,36 @@ import nibabel as nib
 import numpy as np
 import shutil
 import os
+import torch
 from tqdm import tqdm
+from Models.ProbUNetV2.eval import SinkhornSolver, calc_energy_distances, calc_energy_distances_pyT, get_energy_distance_components, get_energy_distance_components_pyT
+from Utils.fid.fidloss import FastFID, PartialResNeXt
+from torch.cuda.amp import GradScaler, autocast
+import time
+from torch.autograd import gradcheck
+import geomloss
 
-from Utils.fid.fidloss import PartialResNeXt
+# op_distloss = FastFID(useInceptionNet=True,batch_size=4, gradient_checkpointing=True)
+# op_distloss = SinkhornSolver(epsilon)
+op_distloss = geomloss.SamplesLoss(loss='sinkhorn')
+op_distloss.cuda()
+
+# x = torch.rand(100,1,640,780, device="cuda", dtype=torch.float32)
+x = torch.rand(10,10,499200, device="cuda", dtype=torch.float32)
+# y = torch.rand(100,1,640,780, device="cuda", dtype=torch.float32)
+y = torch.rand(10,10,499200, device="cuda", dtype=torch.float32)
+
+times = []
+with autocast(enabled=True):
+    for i in range(10):
+        start = time.time()
+        o = op_distloss(x,y)
+        # o = calc_energy_distances_pyT(get_energy_distance_components_pyT(x, y, eval_class_ids=[1]))
+
+        times.append(time.time() - start)
+print(np.median(times))
+
+hajabarola
 
 ob = PartialResNeXt()
 
