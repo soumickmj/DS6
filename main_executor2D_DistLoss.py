@@ -109,7 +109,7 @@ if __name__ == '__main__':
                         default=True, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
     parser.add_argument('--distloss_mode',
-                        default=2, action=argparse.BooleanOptionalAction,
+                        default=2, type=int,
                         help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
                              "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
                              "2: GeomLoss Sinkhorn (Default cost function) \n"
