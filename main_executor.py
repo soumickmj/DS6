@@ -106,9 +106,12 @@ if __name__ == '__main__':
     parser.add_argument('--distloss',
                         default=False, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
-    parser.add_argument('--fidloss_pure',
-                        default=True, action=argparse.BooleanOptionalAction,
-                        help="To pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet), set it to False for Fréchet ResNeXt Distance (trained on single-channel MRIs)")
+    parser.add_argument('--distloss_mode',
+                        default=2, action=argparse.BooleanOptionalAction,
+                        help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
+                             "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
+                             "2: GeomLoss Sinkhorn (Default cost function) \n"
+                             "3: GeomLoss Hausdorff (Default cost function) using energy kernel (squared distances)")
     parser.add_argument('--apex',
                         default=True, action=argparse.BooleanOptionalAction,
                         help="To use half precision on model weights.")
