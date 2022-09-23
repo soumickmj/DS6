@@ -392,14 +392,18 @@ class Pipeline:
             self.logger.info("Epoch:" + str(epoch) + " Average Training..." +
                              "\n MainLoss:" + str(total_floss))
 
-            save_model(self.checkpoint_path, {
+            chk_dict = {
                 'epoch_type': 'last',
                 'epoch': epoch,
                 # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved after validate)
                 'state_dict': self.model.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-                'amp': self.scaler.state_dict()
-            })
+                'optimizer': self.optimizer.state_dict()
+            }
+
+            if self.with_apex:
+                chk_dict["amp"] = self.scaler.state_dict()
+
+            save_model(self.checkpoint_path, chk_dict)
 
             torch.cuda.empty_cache()  # to avoid memory errors
             self.validate(training_batch_index, epoch)
@@ -529,12 +533,19 @@ class Pipeline:
             self.logger.info(
                 'Best metric... @ epoch:' + str(tainingIndex) + ' Current Lowest loss:' + str(self.LOWEST_LOSS))
 
-            save_model(self.checkpoint_path, {
+            chk_dict = {
                 'epoch_type': 'best',
                 'epoch': epoch,
+                'lowest_loss': self.LOWEST_LOSS,
+                # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved after validate)
                 'state_dict': self.model.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-                'amp': self.scaler.state_dict()})
+                'optimizer': self.optimizer.state_dict()
+            }
+
+            if self.with_apex:
+                chk_dict["amp"] = self.scaler.state_dict()
+
+            save_model(self.checkpoint_path, chk_dict)
 
     def test(self, test_logger, save_results=True, test_subjects=None): #for testing models other than Probabilistic UNets
         test_logger.debug('Testing...')
