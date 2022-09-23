@@ -51,6 +51,7 @@ class Pipeline:
         self.model = model
         self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
         self.logger = logger
+        self.starting_epoch = 0
         self.num_epochs = cmd_args.num_epochs
 
         self.writer_training = writer_training
@@ -186,15 +187,17 @@ class Pipeline:
             checkpoint_path = self.checkpoint_path
 
         if self.with_apex:
-            self.model, self.optimizer, self.scaler = load_model_with_amp(self.model, self.optimizer, checkpoint_path, batch_index="best" if load_best else "last")
+            self.model, self.optimizer, self.scaler, self.starting_epoch = load_model_with_amp(self.model, self.optimizer, checkpoint_path, batch_index="best" if load_best else "last")
         else:
-            self.model, self.optimizer = load_model(self.model, self.optimizer, checkpoint_path, batch_index="best" if load_best else "last")
+            self.model, self.optimizer, self.starting_epoch = load_model(self.model, self.optimizer, checkpoint_path, batch_index="best" if load_best else "last")
+
+        self.starting_epoch += 1
 
     def train(self):
         self.logger.debug("Training...")
 
         training_batch_index = 0
-        for epoch in range(self.num_epochs):
+        for epoch in range(self.starting_epoch, self.num_epochs):
             print("Train Epoch: "+str(epoch) +" of "+ str(self.num_epochs))
             self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
             total_floss = 0

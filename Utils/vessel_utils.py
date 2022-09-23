@@ -72,7 +72,8 @@ def load_model(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='
     model.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     model.eval()
-    return model, optimizer
+    epoch = checkpoint["epoch"]
+    return model, optimizer, epoch
 
 
 def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint'):
@@ -88,7 +89,8 @@ def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', f
     scaler = GradScaler()
     scaler.load_state_dict(checkpoint['amp'])
     model.eval()
-    return model, optimizer, scaler
+    epoch = checkpoint["epoch"]
+    return model, optimizer, scaler, epoch
 
 
 def convert_and_save_tif(image3D, output_path, filename='output.tif', isColored=True):
