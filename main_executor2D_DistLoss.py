@@ -73,10 +73,10 @@ if __name__ == '__main__':
                              "Example: /home/output/")
 
     parser.add_argument('--train',
-                        default=False, action=argparse.BooleanOptionalAction,
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To train the model")
     parser.add_argument('--test',
-                        default=True, action=argparse.BooleanOptionalAction,
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="To test the model")
     parser.add_argument("--n_prob_test",
                         type=int,
@@ -93,8 +93,8 @@ if __name__ == '__main__':
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
     parser.add_argument('--load_path',
-                        default="/media/Enterprise/FranziVSeg/Output/Forrest_ManualSeg_Fold0/ProbU2Dv2_DistLossPureFID_At2_pLBL4TrainANDMan4Val/checkpoint",
-                        # default="",
+                        # default="/media/Enterprise/FranziVSeg/Output/Forrest_ManualSeg_Fold0/ProbU2Dv2_DistLossPureFID_At2_pLBL4TrainANDMan4Val/checkpoint",
+                        default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('--load_best',
                         default=True, action=argparse.BooleanOptionalAction,
@@ -108,9 +108,12 @@ if __name__ == '__main__':
     parser.add_argument('--distloss',
                         default=True, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
-    parser.add_argument('--fidloss_pure',
-                        default=True, action=argparse.BooleanOptionalAction,
-                        help="To pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet), set it to False for Fréchet ResNeXt Distance (trained on single-channel MRIs)")
+    parser.add_argument('--distloss_mode',
+                        default=2, action=argparse.BooleanOptionalAction,
+                        help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
+                             "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
+                             "2: GeomLoss Sinkhorn (Default cost function) \n"
+                             "3: GeomLoss Hausdorff (Default cost function)")
     parser.add_argument('--apex',
                         default=True, action=argparse.BooleanOptionalAction,
                         help="To use half precision on model weights.")

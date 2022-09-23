@@ -21,6 +21,7 @@ from torch import nn, optim, distributions
 from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 from scipy.stats import energy_distance
+from geomloss import SamplesLoss as GeomDistLoss
 
 # from Utils.fid.fastfid import fastfid 
 
@@ -117,9 +118,25 @@ class Pipeline:
         if self.ProbFlag > 0:
             self.fid_calc = FastFID(useInceptionNet=True, batch_size=-1, gradient_checkpointing=True)
 
+        self.distloss_mode = cmd_args.distloss_mode
+
         if self.plauslabels and self.ProbFlag and self.distloss:
-            self.op_distloss = FastFID(useInceptionNet=cmd_args.fidloss_pure,batch_size=cmd_args.batch_size_fidloss, gradient_checkpointing=True)
-            self.op_distloss.cuda()
+            if cmd_args.distloss_mode in [0,1]:
+                self.op_distloss = FastFID(useInceptionNet=True if cmd_args.distloss_mode==0 else False, batch_size=cmd_args.batch_size_fidloss, gradient_checkpointing=True)
+                self.op_distloss.cuda()
+            elif cmd_args.distloss_mode in [2,3]:
+                if cmd_args.distloss_mode == 2:
+                    dist_loss_type = "sinkhorn"
+                elif cmd_args.distloss_mode == 3:
+                    dist_loss_type = "hausdorff"
+                op_distloss_func = GeomDistLoss(loss=dist_loss_type)
+                op_distloss_func.cuda()
+                def GeomDistLossWrapper(x, y):
+                    return op_distloss_func(x.view(x.shape[0], x.shape[1], -1), y.view(y.shape[0], y.shape[1], -1)).mean()
+                self.op_distloss = GeomDistLossWrapper
+            else:
+                sys.exit("Error: Invalid distloss_mode")
+            
 
         if cmd_args.train: #Only if training is to be performed
             traindataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/train/', label_path=self.DATASET_FOLDER + '/train_label/', crossvalidation_set=training_set, plauslabels_path=self.DATASET_FOLDER + '/train_plausiblelabel/' if cmd_args.plauslabels else "")
@@ -217,7 +234,7 @@ class Pipeline:
                     local_plauslabels = []
                     for l in labels:
                         local_plauslabels.append(patches_batch[l][tio.DATA])
-                    local_plauslabels = torch.concat(local_plauslabels, dim=0).float().cuda()
+                    local_plauslabels = torch.concat(local_plauslabels, dim=0 if self.distloss_mode in [0,1] else 1).float().cuda()
                     if self.dimMode == 3:
                         local_plauslabels = torch.movedim(local_plauslabels, -1, -3) 
                     else:
@@ -276,7 +293,8 @@ class Pipeline:
                             loss_segmentation = self.criterion_segmentation(output, local_labels).sum()
                         else:
                             output = self.model(local_batch, local_labels, make_onehot=False, distlossN=len(labels))
-                            loss_segmentation = self.op_distloss(output, local_plauslabels)
+                            # loss_segmentation = self.op_distloss(output, local_plauslabels)
+                            loss_segmentation = self.op_distloss(torch.concat(output, dim=0 if self.distloss_mode in [0,1] else 1), local_plauslabels)
                         loss_latent = self.criterion_latent(self.model.posterior, self.model.prior).sum()
                         floss = self.criterion_segmentation_weight * loss_segmentation + self.criterion_latent_weight * loss_latent
 
@@ -421,7 +439,7 @@ class Pipeline:
                     local_plauslabels = []
                     for l in labels:
                         local_plauslabels.append(patches_batch[l][tio.DATA])
-                    local_plauslabels = torch.concat(local_plauslabels, dim=0).float().cuda()
+                    local_plauslabels = torch.concat(local_plauslabels, dim=0 if self.distloss_mode in [0,1] else 1).float().cuda()
                     if self.dimMode == 3:
                         local_plauslabels = torch.movedim(local_plauslabels, -1, -3) 
                     else:
@@ -470,7 +488,7 @@ class Pipeline:
                             else:
                                 output = self.model.sample_prior(N=len(labels), out_device=local_batch.device, input_=local_batch)
                                 try:
-                                    floss_iter = self.op_distloss(torch.concat(output, dim=0), local_plauslabels).detach().item()
+                                    floss_iter = self.op_distloss(torch.concat(output, dim=0 if self.distloss_mode in [0,1] else 1), local_plauslabels).detach().item()
                                 except:
                                     pass
                                 output1 = random.choice(output)

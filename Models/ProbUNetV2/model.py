@@ -616,7 +616,7 @@ class ProbabilisticSegmentationNet(ConvModule):
                 for i in range(distlossN):
                     sample = self.posterior.rsample()
                     segs.append(self.task_net(input_, sample, store_activations=not self.training))
-                return torch.concat(segs, dim=0)
+                return segs #torch.concat(segs, dim=0)
             else: #I'm not totally sure about this!!
                 sample = self.prior.loc
                 return self.task_net(input_, sample, store_activations=not self.training)
