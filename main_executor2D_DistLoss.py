@@ -115,7 +115,7 @@ if __name__ == '__main__':
                              "2: GeomLoss Sinkhorn (Default cost function) \n"
                              "3: GeomLoss Hausdorff (Default cost function) using energy kernel (squared distances)")
     parser.add_argument('--apex',
-                        default=False, action=argparse.BooleanOptionalAction,
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To use half precision on model weights.")
 
     parser.add_argument("--batch_size",

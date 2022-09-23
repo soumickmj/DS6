@@ -157,7 +157,7 @@ if __name__ == '__main__':
                         help="Number of samples per epoch")
     parser.add_argument("--num_worker",
                         type=int,
-                        default=8,
+                        default=5,
                         help="Number of worker threads")
 
     args = parser.parse_args()
