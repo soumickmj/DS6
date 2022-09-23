@@ -113,14 +113,14 @@ if __name__ == '__main__':
                         help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
                              "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
                              "2: GeomLoss Sinkhorn (Default cost function) \n"
-                             "3: GeomLoss Hausdorff (Default cost function)")
+                             "3: GeomLoss Hausdorff (Default cost function) using energy kernel (squared distances)")
     parser.add_argument('--apex',
-                        default=True, action=argparse.BooleanOptionalAction,
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="To use half precision on model weights.")
 
     parser.add_argument("--batch_size",
                         type=int,
-                        default=10,
+                        default=4,
                         help="Batch size for training")
     parser.add_argument("--batch_size_fidloss",
                         type=int,

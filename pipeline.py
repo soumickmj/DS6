@@ -22,6 +22,7 @@ from torch.cuda.amp import GradScaler, autocast
 from tqdm import tqdm
 from scipy.stats import energy_distance
 from geomloss import SamplesLoss as GeomDistLoss
+from geomloss.kernel_samples import energy_kernel
 
 # from Utils.fid.fastfid import fastfid 
 
@@ -127,9 +128,11 @@ class Pipeline:
             elif cmd_args.distloss_mode in [2,3]:
                 if cmd_args.distloss_mode == 2:
                     dist_loss_type = "sinkhorn"
+                    kernel = None
                 elif cmd_args.distloss_mode == 3:
                     dist_loss_type = "hausdorff"
-                op_distloss_func = GeomDistLoss(loss=dist_loss_type)
+                    kernel = energy_kernel
+                op_distloss_func = GeomDistLoss(loss=dist_loss_type, kernel=kernel)
                 op_distloss_func.cuda()
                 def GeomDistLossWrapper(x, y):
                     return op_distloss_func(x.view(x.shape[0], x.shape[1], -1), y.view(y.shape[0], y.shape[1], -1)).mean()

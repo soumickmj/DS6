@@ -9,10 +9,10 @@ from Utils.fid.fidloss import FastFID, PartialResNeXt
 from torch.cuda.amp import GradScaler, autocast
 import time
 from geomloss import SamplesLoss as GeomDistLoss
-
+from geomloss.kernel_samples import energy_kernel
 
 # op_distloss = FastFID(useInceptionNet=True,batch_size=4, gradient_checkpointing=True)
-op_distloss_func = GeomDistLoss(loss="sinkhorn")
+op_distloss_func = GeomDistLoss(loss="hausdorff", kernel=energy_kernel)
 op_distloss_func.cuda()
 def GeomDistLossWrapper(x, y):
     return op_distloss_func(x.view(x.shape[0], x.shape[1], -1), y.view(y.shape[0], y.shape[1], -1)).mean()
@@ -22,7 +22,7 @@ x = torch.rand(8,10,640,780, device="cuda", dtype=torch.float32)
 y = torch.rand(8,10,640,780, device="cuda", dtype=torch.float32)
 
 times = []
-with autocast(enabled=True):
+with autocast(enabled=False):
     for i in range(10):
         start = time.time()
         o = op_distloss(x,y)
