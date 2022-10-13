@@ -445,7 +445,7 @@ class Pipeline:
                 if self.wandb is not None:
                     self.wandb.log({"focalTverskyLoss_train_" + str(fold_index): total_floss, "mipLoss_train_" + str(fold_index): total_mipLoss,
                                     "diceScore_train_" + str(fold_index): total_DiceScore, "IOU_train_" + str(fold_index): total_IOU,
-                                    "totalLoss_train_" + str(fold_index): total_loss, "epoch": epoch, "fold_index": fold_index}, step=epoch)
+                                    "totalLoss_train_" + str(fold_index): total_loss, "epoch": epoch, "fold_index": fold_index})
                 # save_model(self.checkpoint_path, {
                 #     'epoch_type': 'last',
                 #     'epoch': fold_index,
@@ -561,7 +561,7 @@ class Pipeline:
         #                     iou=0, total_loss=total_loss)
         if self.wandb is not None:
             self.wandb.log({"focalTverskyLoss_val_" + str(fold_index): floss, "mipLoss_val_" + str(fold_index): mipLoss, "diceLoss_val_" + str(fold_index): dloss,
-                            "totalLoss_val_" + str(fold_index): total_loss, "epoch": epoch, "fold_index": fold_index}, step=epoch)
+                            "totalLoss_val_" + str(fold_index): total_loss, "epoch": epoch, "fold_index": fold_index})
 
         if self.LOWEST_LOSS > total_loss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = total_loss
