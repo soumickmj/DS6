@@ -27,6 +27,7 @@ from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 create_mask, load_model, load_model_with_amp,
                                 save_model, write_summary, write_Epoch_summary)
 from Utils.datasets import SRDataset
+from Utils.model_manager import getModel
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -40,12 +41,14 @@ __status__ = "Production"
 
 class Pipeline:
 
-    def __init__(self, cmd_args, model, logger, dir_path, checkpoint_path, writer_training, writer_validating,
+    def __init__(self, cmd_args, model, logger, dir_path, checkpoint_path, writer_training, writer_validating, test_logger, model_type, OUTPUT_PATH, MODEL_NAME,
                  training_set=None, validation_set=None, test_set=None, wandb=None):
 
         self.logger = logger
         self.wandb = wandb
         self.model = model
+        self.MODEL_NAME = cmd_args.model_name
+        self.model_type = cmd_args.model
         self.lr_1 = cmd_args.learning_rate
         self.logger.info("learning rate " + str(self.lr_1))
         self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
@@ -54,6 +57,7 @@ class Pipeline:
 
         self.writer_training = writer_training
         self.writer_validating = writer_validating
+        self.test_logger = test_logger
         self.checkpoint_path = checkpoint_path
         self.load_path = cmd_args.load_path
         self.DATASET_FOLDER = dir_path
@@ -205,6 +209,12 @@ class Pipeline:
             self.model, self.optimizer = load_model(self.model, self.optimizer, checkpoint_path,
                                                     batch_index="best" if load_best else "last")
 
+    def reset(self):
+        del self.model
+        self.model = getModel(self.model_type, self.output_path + "/" + self.MODEL_NAME)
+        self.model.cuda()
+        self.LOWEST_LOSS = float('inf')
+
     def train(self):
         self.logger.debug("Training...")
         vol_path = self.DATASET_FOLDER + '/train/'
@@ -236,229 +246,235 @@ class Pipeline:
                                                           shuffle=False,
                                                           num_workers=self.num_worker, pin_memory=True)
             print("Train Fold: " + str(fold_index) + " of " + str(self.k_folds))
-            self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
-            total_floss = 0
-            total_mipLoss = 0
-            total_loss = 0
-            total_DiceLoss = 0
-            total_IOU = 0
-            total_DiceScore = 0
-            batch_index = 0
-            for batch_index, patches_batch in enumerate(tqdm(train_loader)):
+            for epoch in range(self.num_epochs):
+                print("Train Epoch: " + str(epoch) + " of " + str(self.num_epochs))
+                self.model.train()  # make sure to assign mode:train, because in validation, mode is assigned as eval
+                total_floss = 0
+                total_mipLoss = 0
+                total_loss = 0
+                total_DiceLoss = 0
+                total_IOU = 0
+                total_DiceScore = 0
+                batch_index = 0
+                for batch_index, patches_batch in enumerate(tqdm(train_loader)):
 
-                local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
-                local_labels = patches_batch['label'][tio.DATA].float().cuda()
+                    local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
+                    local_labels = patches_batch['label'][tio.DATA].float().cuda()
 
-                local_batch = torch.movedim(local_batch, -1, -3)
-                local_labels = torch.movedim(local_labels, -1, -3)
+                    local_batch = torch.movedim(local_batch, -1, -3)
+                    local_labels = torch.movedim(local_labels, -1, -3)
 
-                # Transfer to GPU
-                self.logger.debug('Fold: {} Batch Index: {}'.format(fold_index, batch_index))
+                    # Transfer to GPU
+                    self.logger.debug('Fold: {} Batch Index: {}'.format(fold_index, batch_index))
 
-                # Clear gradients
-                self.optimizer.zero_grad()
+                    # Clear gradients
+                    self.optimizer.zero_grad()
 
-                # try:
-                with autocast(enabled=self.with_apex):
-                    loss_ratios = [1, 0.66, 0.34]  # TODO param
+                    # try:
+                    with autocast(enabled=self.with_apex):
+                        loss_ratios = [1, 0.66, 0.34]  # TODO param
 
-                    floss = torch.tensor(0.001).float().cuda()
-                    mip_loss = torch.tensor(0.001).float().cuda()
-                    output1 = 0
-                    level = 0
-                    diceLoss_batch = 0
-                    diceScore_batch = 0
-                    IOU_batch = 0
-
-                    # -------------------------------------------------------------------------------------------------
-                    # First Branch Supervised error
-                    if not self.isProb:
-                        # Compute DiceLoss using batch labels
-                        for output in self.model(local_batch):
-                            if level == 0:
-                                output1 = output
-                            if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
-                            output = torch.sigmoid(output)
-                            dl_batch, ds_batch = self.dice(output, local_labels)
-                            IOU_score = self.iou(output, local_labels)
-                            diceLoss_batch += dl_batch.detach().item()
-                            diceScore_batch += ds_batch.detach().item()
-                            IOU_batch += IOU_score.detach().item()
-                            floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
-                            # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
-                            mip_loss_patch = torch.tensor(0.001).float().cuda()
-                            num_patches = 0
-                            for index, op in enumerate(output):
-                                op_mip = torch.amax(op, 1)
-                                mip_loss_patch += loss_ratios[level] * self.mip_loss(op_mip,
-                                                                                     patches_batch[
-                                                                                         'ground_truth_mip_patch'][
-                                                                                         index].float().cuda())
-                            if not torch.any(torch.isnan(mip_loss_patch)):
-                                mip_loss += mip_loss_patch / len(output)
-                            # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
-
-                            level += 1
-                    else:
-                        self.model.forward(local_batch, local_labels, training=True)
-                        elbo = self.model.elbo(local_labels, analytic_kl=True)
-                        reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(
-                            self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
-                        if self.with_apex:
-                            floss = [
-                                self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss,
-                                -(self.model.beta * self.model.kl),
-                                self.model.reg_alpha * reg_loss]
-                        else:
-                            floss = -elbo + self.model.reg_alpha * reg_loss
-
-                    # Elastic Deformations
-                    if self.deform:
-                        # Each batch must be randomly deformed
-                        elastic = RandomElasticDeformation(
-                            num_control_points=random.choice([5, 6, 7]),
-                            max_displacement=random.choice([0.01, 0.015, 0.02, 0.025, 0.03]),
-                            locked_borders=2
-                        )
-                        elastic.cuda()
-
-                        with autocast(enabled=False):
-                            local_batch_xt, displacement, _ = elastic(local_batch)
-                            local_labels_xt = warp_image(local_labels, displacement, multi=True)
-                        floss2 = 0
-
+                        floss = torch.tensor(0.001).float().cuda()
+                        mip_loss = torch.tensor(0.001).float().cuda()
+                        output1 = 0
                         level = 0
-                        # ------------------------------------------------------------------------------
-                        # Second Branch Supervised error
-                        for output in self.model(local_batch_xt):
-                            if level == 0:
-                                output2 = output
-                            if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                        diceLoss_batch = 0
+                        diceScore_batch = 0
+                        IOU_batch = 0
 
-                            output = torch.sigmoid(output)
-                            floss2 += loss_ratios[level] * self.focalTverskyLoss(output, local_labels_xt)
-                            level += 1
+                        # -------------------------------------------------------------------------------------------------
+                        # First Branch Supervised error
+                        if not self.isProb:
+                            # Compute DiceLoss using batch labels
+                            for output in self.model(local_batch):
+                                if level == 0:
+                                    output1 = output
+                                if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                    output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+                                output = torch.sigmoid(output)
+                                dl_batch, ds_batch = self.dice(output, local_labels)
+                                IOU_score = self.iou(output, local_labels)
+                                diceLoss_batch += dl_batch.detach().item()
+                                diceScore_batch += ds_batch.detach().item()
+                                IOU_batch += IOU_score.detach().item()
+                                floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
+                                # Compute MIP loss from the patch on the MIP of the 3D label and the patch prediction
+                                mip_loss_patch = torch.tensor(0.001).float().cuda()
+                                num_patches = 0
+                                for index, op in enumerate(output):
+                                    op_mip = torch.amax(op, 1)
+                                    mip_loss_patch += loss_ratios[level] * self.mip_loss(op_mip,
+                                                                                         patches_batch[
+                                                                                             'ground_truth_mip_patch'][
+                                                                                             index].float().cuda())
+                                if not torch.any(torch.isnan(mip_loss_patch)):
+                                    mip_loss += mip_loss_patch / len(output)
+                                # mip_loss += loss_ratios[level] * self.mip_loss(output, patches_batch, self.pre_loaded_train_lbl_data, self.focalTverskyLoss, self.patch_size)
 
-                        # -------------------------------------------------------------------------------------------
-                        # Consistency loss
-                        with autocast(enabled=False):
-                            output1T = warp_image(output1.float(), displacement, multi=True)
-                        floss_c = self.focalTverskyLoss(torch.sigmoid(output2), output1T)
-
-                        # -------------------------------------------------------------------------------------------
-                        # Total loss
-                        floss = floss + floss2 + floss_c
-
-                    else:
-                        loss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
-
-                # except Exception as error:
-                #     self.logger.exception(error)
-                #     sys.exit()
-
-                self.logger.info("Fold:" + str(fold_index) + " Batch_Index:" + str(batch_index) + " Training..." +
-                                 "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(
-                    diceLoss_batch) + " diceScore: " + str(diceScore_batch) + " iou: " + str(
-                    IOU_batch) + " mipLoss: " + str(mip_loss) + " totalLoss: " + str(loss))
-
-                # Calculating gradients
-                if self.with_apex:
-                    if type(loss) is list:
-                        for i in range(len(loss)):
-                            if i + 1 == len(loss):  # final loss
-                                self.scaler.scale(loss[i]).backward()
+                                level += 1
+                        else:
+                            self.model.forward(local_batch, local_labels, training=True)
+                            elbo = self.model.elbo(local_labels, analytic_kl=True)
+                            reg_loss = self.l2_regularisation(self.model.posterior) + self.l2_regularisation(
+                                self.model.prior) + self.l2_regularisation(self.model.fcomb.layers)
+                            if self.with_apex:
+                                floss = [
+                                    self.model.mean_reconstruction_loss if self.model.use_mean_recon_loss else self.model.reconstruction_loss,
+                                    -(self.model.beta * self.model.kl),
+                                    self.model.reg_alpha * reg_loss]
                             else:
-                                self.scaler.scale(loss[i]).backward(retain_graph=True)
-                        floss = torch.sum(torch.stack(loss))
+                                floss = -elbo + self.model.reg_alpha * reg_loss
+
+                        # Elastic Deformations
+                        if self.deform:
+                            # Each batch must be randomly deformed
+                            elastic = RandomElasticDeformation(
+                                num_control_points=random.choice([5, 6, 7]),
+                                max_displacement=random.choice([0.01, 0.015, 0.02, 0.025, 0.03]),
+                                locked_borders=2
+                            )
+                            elastic.cuda()
+
+                            with autocast(enabled=False):
+                                local_batch_xt, displacement, _ = elastic(local_batch)
+                                local_labels_xt = warp_image(local_labels, displacement, multi=True)
+                            floss2 = 0
+
+                            level = 0
+                            # ------------------------------------------------------------------------------
+                            # Second Branch Supervised error
+                            for output in self.model(local_batch_xt):
+                                if level == 0:
+                                    output2 = output
+                                if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                    output = torch.nn.functional.interpolate(input=output, size=(64, 64, 64))
+
+                                output = torch.sigmoid(output)
+                                floss2 += loss_ratios[level] * self.focalTverskyLoss(output, local_labels_xt)
+                                level += 1
+
+                            # -------------------------------------------------------------------------------------------
+                            # Consistency loss
+                            with autocast(enabled=False):
+                                output1T = warp_image(output1.float(), displacement, multi=True)
+                            floss_c = self.focalTverskyLoss(torch.sigmoid(output2), output1T)
+
+                            # -------------------------------------------------------------------------------------------
+                            # Total loss
+                            floss = floss + floss2 + floss_c
+
+                        else:
+                            loss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
+
+                    # except Exception as error:
+                    #     self.logger.exception(error)
+                    #     sys.exit()
+
+                    self.logger.info("Fold:" + str(fold_index) + " Epoch:" + str(epoch) + " Batch_Index:" + str(batch_index) + " Training..." +
+                                     "\n focalTverskyLoss: " + str(floss) + " diceLoss: " + str(
+                        diceLoss_batch) + " diceScore: " + str(diceScore_batch) + " iou: " + str(
+                        IOU_batch) + " mipLoss: " + str(mip_loss) + " totalLoss: " + str(loss))
+
+                    # Calculating gradients
+                    if self.with_apex:
+                        if type(loss) is list:
+                            for i in range(len(loss)):
+                                if i + 1 == len(loss):  # final loss
+                                    self.scaler.scale(loss[i]).backward()
+                                else:
+                                    self.scaler.scale(loss[i]).backward(retain_graph=True)
+                            floss = torch.sum(torch.stack(loss))
+                        else:
+                            self.scaler.scale(loss).backward()
+
+                        if self.clip_grads:
+                            self.scaler.unscale_(self.optimizer)
+                            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                            # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
                     else:
-                        self.scaler.scale(loss).backward()
+                        if not torch.any(torch.isnan(floss)):
+                            floss.backward()
+                        else:
+                            self.logger.info("nan found in floss.... no backpropagation!!")
+                        if self.clip_grads:
+                            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
+                            # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
 
-                    if self.clip_grads:
-                        self.scaler.unscale_(self.optimizer)
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
-                        # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+                        self.optimizer.step()
 
-                    self.scaler.step(self.optimizer)
-                    self.scaler.update()
-                else:
-                    if not torch.any(torch.isnan(floss)):
-                        floss.backward()
-                    else:
-                        self.logger.info("nan found in floss.... no backpropagation!!")
-                    if self.clip_grads:
-                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1)
-                        # torch.nn.utils.clip_grad_value_(self.model.parameters(), 1)
+                    # Initialising the average loss metrics
+                    total_floss += floss.detach().item()
+                    total_loss += loss.detach().item()
+                    # Compute total DiceLoss, DiceScore and IOU per batch
+                    if (num_patches > 0):
+                        diceLoss_batch = diceLoss_batch / num_patches
+                        diceScore_batch = diceScore_batch / num_patches
+                        IOU_batch = IOU_batch / num_patches
+                        mip_loss = mip_loss / num_patches
 
-                    self.optimizer.step()
+                    total_DiceLoss += diceLoss_batch
+                    total_DiceScore += diceScore_batch
+                    total_IOU += IOU_batch
+                    total_mipLoss += mip_loss
 
-                # Initialising the average loss metrics
-                total_floss += floss.detach().item()
-                total_loss += loss.detach().item()
-                # Compute total DiceLoss, DiceScore and IOU per batch
-                if (num_patches > 0):
-                    diceLoss_batch = diceLoss_batch / num_patches
-                    diceScore_batch = diceScore_batch / num_patches
-                    IOU_batch = IOU_batch / num_patches
-                    mip_loss = mip_loss / num_patches
+                    if self.deform:
+                        del elastic
+                    torch.cuda.empty_cache()
 
-                total_DiceLoss += diceLoss_batch
-                total_DiceScore += diceScore_batch
-                total_IOU += IOU_batch
-                total_mipLoss += mip_loss
+                # Calculate the average loss per batch in one epoch
+                total_floss /= (batch_index + 1.0)
+                total_mipLoss /= (batch_index + 1.0)
+                total_loss /= (batch_index + 1.0)
 
-                if self.deform:
-                    del elastic
-                torch.cuda.empty_cache()
+                # Calculate the average DiceLoss, DiceScore and IOU per epoch
+                total_DiceLoss /= (batch_index + 1.0)
+                total_DiceScore /= (batch_index + 1.0)
+                total_IOU /= (batch_index + 1.0)
+                # Print every epoch
+                self.logger.info("Fold:" + str(fold_index) + " Epoch:" + str(epoch) + " Average Training..." +
+                                 "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(
+                    total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(
+                    total_IOU) + " mipLoss: " + str(total_mipLoss) + " total_loss" + str(total_loss))
+                # TODO: Not Logging to tensorboard currently
+                # write_Epoch_summary(self.writer_training, fold_index, focalTverskyLoss=total_floss, mipLoss=total_mipLoss,
+                #                     diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU,
+                #                     total_loss=total_loss)
+                if self.wandb is not None:
+                    self.wandb.log({"focalTverskyLoss_train_" + str(fold_index): total_floss, "mipLoss_train_" + str(fold_index): total_mipLoss,
+                                    "diceScore_train_" + str(fold_index): total_DiceScore, "IOU_train_" + str(fold_index): total_IOU,
+                                    "totalLoss_train_" + str(fold_index): total_loss, "epoch": epoch, "fold_index": fold_index}, step=epoch)
+                # save_model(self.checkpoint_path, {
+                #     'epoch_type': 'last',
+                #     'epoch': fold_index,
+                #     # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved after validate)
+                #     'state_dict': self.model.state_dict(),
+                #     'optimizer': self.optimizer.state_dict(),
+                #     'amp': self.scaler.state_dict()
+                # })
+                torch.cuda.empty_cache()  # to avoid memory errors
+                self.validate(fold_index, epoch, validate_loader)
+                torch.cuda.empty_cache()  # to avoid memory errors
 
-            # Calculate the average loss per batch in one epoch
-            total_floss /= (batch_index + 1.0)
-            total_mipLoss /= (batch_index + 1.0)
-            total_loss /= (batch_index + 1.0)
-
-            # Calculate the average DiceLoss, DiceScore and IOU per epoch
-            total_DiceLoss /= (batch_index + 1.0)
-            total_DiceScore /= (batch_index + 1.0)
-            total_IOU /= (batch_index + 1.0)
-            # Print every epoch
-            self.logger.info("Fold:" + str(fold_index) + " Average Training..." +
-                             "\n focalTverskyLoss:" + str(total_floss) + " diceLoss: " + str(
-                total_DiceLoss) + " diceScore: " + str(total_DiceScore) + " iou: " + str(
-                total_IOU) + " mipLoss: " + str(total_mipLoss) + " total_loss" + str(total_loss))
-            write_Epoch_summary(self.writer_training, fold_index, focalTverskyLoss=total_floss, mipLoss=total_mipLoss,
-                                diceLoss=total_DiceLoss, diceScore=total_DiceScore, iou=total_IOU,
-                                total_loss=total_loss)
-            self.wandb.log({"focalTverskyLoss_train": total_floss, "mipLoss_train": total_mipLoss,
-                            "diceScore_train": total_DiceScore, "IOU_train": total_IOU,
-                            "totalLoss_train": total_loss}, step=fold_index)
-            # save_model(self.checkpoint_path, {
-            #     'epoch_type': 'last',
-            #     'epoch': fold_index,
-            #     # Let is always overwrite, we need just the last checkpoint and best checkpoint(saved after validate)
-            #     'state_dict': self.model.state_dict(),
-            #     'optimizer': self.optimizer.state_dict(),
-            #     'amp': self.scaler.state_dict()
-            # })
+            # Testing for current fold
             torch.cuda.empty_cache()  # to avoid memory errors
-            self.validate(fold_index, validate_loader)
+            self.test(self.test_logger, fold_index=fold_index)
             torch.cuda.empty_cache()  # to avoid memory errors
 
-            # Discard the current model and load the existing best model
-            if self.load_path is not None:
-                self.load(checkpoint_path=self.load_path)
-            else:
-                self.load()
+            # Discard the current model and reset training parameters
+            self.reset()
 
         return self.model
 
-    def validate(self, fold_index, validate_loader=None):
+    def validate(self, fold_index, epoch, validate_loader=None):
         """
         Method to validate
         :return:
         """
         self.logger.debug('Validating...')
-        print("Validate Fold: " + str(fold_index) + " of " + str(self.k_folds))
+        print("Validate Fold: " + str(fold_index) + " of " + str(self.k_folds) + "Validate Epoch: " + str(epoch) + " of " + str(self.num_epochs))
 
         floss, mipLoss, total_loss, binloss, dloss, dscore, jaccard_index = 0, 0, 0, 0, 0, 0, 0
         no_patches = 0
@@ -534,16 +550,17 @@ class Pipeline:
         total_loss = total_loss / no_patches
         dloss = dloss / no_patches
         process = ' Validating'
-        self.logger.info("Fold:" + str(fold_index) + process + "..." +
+        self.logger.info("Fold:" + str(fold_index) + " Epoch:" + str(epoch) + process + "..." +
                          "\n FocalTverskyLoss:" + str(floss) +
                          "\n DiceLoss:" + str(dloss) +
                          "\n MipLoss:" + str(mipLoss) +
                          "\n TotalLoss:" + str(total_loss))
-
-        write_Epoch_summary(writer, fold_index, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss=dloss, diceScore=0,
-                            iou=0, total_loss=total_loss)
-        self.wandb.log({"focalTverskyLoss_val": floss, "mipLoss_val": mipLoss, "diceLoss_val": dloss,
-                        "totalLoss_val": total_loss}, step=fold_index)
+        # TODO: Not logging to tensorboard currently
+        # write_Epoch_summary(writer, fold_index, focalTverskyLoss=floss, mipLoss=mipLoss, diceLoss=dloss, diceScore=0,
+        #                     iou=0, total_loss=total_loss)
+        if self.wandb is not None:
+            self.wandb.log({"focalTverskyLoss_val_" + str(fold_index): floss, "mipLoss_val_" + str(fold_index): mipLoss, "diceLoss_val_" + str(fold_index): dloss,
+                            "totalLoss_val_" + str(fold_index): total_loss, "epoch": epoch, "fold_index": fold_index}, step=epoch)
 
         if self.LOWEST_LOSS > total_loss:  # Save best metric evaluation weights
             self.LOWEST_LOSS = total_loss
@@ -555,7 +572,7 @@ class Pipeline:
                 'epoch': fold_index,
                 'state_dict': self.model.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
-                'amp': self.scaler.state_dict()})
+                'amp': self.scaler.state_dict()}, fold_index=fold_index)
 
     def pseudo_train(self, test_logger):
         test_logger.debug('Testing With MIP...')
@@ -751,7 +768,7 @@ class Pipeline:
         #
         # df.to_excel(os.path.join(result_root, "Results_Main.xlsx"))
 
-    def test(self, test_logger, save_results=True, test_subjects=None):
+    def test(self, test_logger, save_results=True, test_subjects=None, fold_index=""):
         test_logger.debug('Testing...')
 
         if test_subjects is None:
@@ -826,25 +843,29 @@ class Pipeline:
                     df = pd.concat([df, datum], ignore_index=True)
 
                 if save_results:
-                    save_nifti(result, os.path.join(result_root, subjectname + ".nii.gz"))
+                    save_nifti(result, os.path.join(result_root, subjectname + "_fld" + str(fold_index) + ".nii.gz"))
 
                     resultMIP = np.max(result, axis=-1)
                     Image.fromarray((resultMIP * 255).astype('uint8'), 'L').save(
-                        os.path.join(result_root, subjectname + "_MIP.tif"))
+                        os.path.join(result_root, subjectname + str(fold_index) + "_MIP.tif"))
 
                     if label is not None:
                         overlay = create_diff_mask_binary(result, label)
-                        save_tifRGB(overlay, os.path.join(result_root, subjectname + "_colour.tif"))
+                        save_tifRGB(overlay, os.path.join(result_root, subjectname + "_fld" + str(fold_index) + "_colour.tif"))
 
                         overlayMIP = create_diff_mask_binary(resultMIP, np.max(label, axis=-1))
-                        Image.fromarray(overlayMIP.astype('uint8'), 'RGB').save(
-                            os.path.join(result_root, subjectname + "_colourMIP.tif"))
+                        color_mip = Image.fromarray(overlayMIP.astype('uint8'), 'RGB')
+                        color_mip.save(
+                            os.path.join(result_root, subjectname + "_fld" + str(fold_index) + "_colourMIP.tif"))
+                        if self.wandb is not None:
+                            self.wandb.log({"" + subjectname + "_fld" + str(fold_index): self.wandb.Image(color_mip)})
+
 
                 test_logger.info("Testing " + subjectname + "..." +
                                  "\n Dice:" + str(dice3D) +
                                  "\n JacardIndex:" + str(iou3D))
 
-        df.to_excel(os.path.join(result_root, "Results_Main.xlsx"))
+        df.to_excel(os.path.join(result_root, "Results_Main_fld" + str(fold_index) + ".xlsx"))
 
     def predict(self, image_path, label_path, predict_logger):
         image_name = os.path.basename(image_path).split('.')[0]

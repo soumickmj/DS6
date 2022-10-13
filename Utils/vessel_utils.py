@@ -68,36 +68,36 @@ def write_Epoch_summary(writer, index, focalTverskyLoss=0, mipLoss=0, diceLoss=0
     writer.add_scalar('IOU (Per Epoch)', iou, index)  
     writer.add_scalar('TotalLoss (Per Epoch)', total_loss, index)
 
-def save_model(CHECKPOINT_PATH, state, filename='checkpoint'):
+def save_model(CHECKPOINT_PATH, state, filename='checkpoint', fold_index=""):
     """
     Method to save model
     """
     print('Saving model...')
     if not os.path.exists(CHECKPOINT_PATH):
         os.mkdir(CHECKPOINT_PATH)
-    torch.save(state, CHECKPOINT_PATH + filename + str(state['epoch_type']) + '.pth')
+    torch.save(state, CHECKPOINT_PATH + filename + str(state['epoch_type']) + str(fold_index) + '.pth')
 
 
-def load_model(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint'):
+def load_model(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint', fold_index=""):
     """
     Method to load model, make sure to set the model to eval, use optimiser if want to continue training
     """
     print('Loading model...')
-    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
+    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + str(fold_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     model.eval()
     return model, optimizer
 
 
-def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint'):
+def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='checkpoint', fold_index=""):
     """
     Method to load model, make sure to set the model to eval, use optimiser if want to continue training
     opt_level="O1"
     """
     print('Loading model...')
     model.cuda()
-    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
+    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + str(fold_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     scaler = GradScaler()
