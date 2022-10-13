@@ -198,16 +198,16 @@ class Pipeline:
                 batch[i] = batch[i] / batch[i].max()
         return batch
 
-    def load(self, checkpoint_path=None, load_best=True):
+    def load(self, checkpoint_path=None, load_best=True, fold_index=""):
         if checkpoint_path is None:
             checkpoint_path = self.checkpoint_path
 
         if self.with_apex:
             self.model, self.optimizer, self.scaler = load_model_with_amp(self.model, self.optimizer, checkpoint_path,
-                                                                          batch_index="best" if load_best else "last")
+                                                                          batch_index="best" if load_best else "last", fold_index=fold_index)
         else:
             self.model, self.optimizer = load_model(self.model, self.optimizer, checkpoint_path,
-                                                    batch_index="best" if load_best else "last")
+                                                    batch_index="best" if load_best else "last", fold_index=fold_index)
 
     def reset(self):
         del self.model
@@ -460,6 +460,7 @@ class Pipeline:
 
             # Testing for current fold
             torch.cuda.empty_cache()  # to avoid memory errors
+            self.load(fold_index=fold_index)
             self.test(self.test_logger, fold_index=fold_index)
             torch.cuda.empty_cache()  # to avoid memory errors
 
