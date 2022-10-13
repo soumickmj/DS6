@@ -54,6 +54,7 @@ class Pipeline:
         self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
         self.num_epochs = cmd_args.num_epochs
         self.k_folds = cmd_args.k_folds
+        self.learning_rate = cmd_args.learning_rate
 
         self.writer_training = writer_training
         self.writer_validating = writer_validating
@@ -211,8 +212,11 @@ class Pipeline:
 
     def reset(self):
         del self.model
-        self.model = getModel(self.model_type, self.output_path + "/" + self.MODEL_NAME)
+        self.model = torch.nn.DataParallel(getModel(self.model_type, self.output_path + "/" + self.MODEL_NAME))
         self.model.cuda()
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        if self.with_apex:
+            self.scaler = GradScaler()
         self.LOWEST_LOSS = float('inf')
 
     def train(self):
