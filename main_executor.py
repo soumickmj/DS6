@@ -3,6 +3,7 @@
 
 """
 
+
 import argparse
 import random
 import os
@@ -137,15 +138,24 @@ if __name__ == '__main__':
     OUTPUT_PATH = args.output_path
 
     LOAD_PATH = args.load_path
-    CHECKPOINT_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '/checkpoint/'
-    TENSORBOARD_PATH_TRAINING = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_training/'
-    TENSORBOARD_PATH_VALIDATION = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_validation/'
-    TENSORBOARD_PATH_TESTING = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_testing/'
+    CHECKPOINT_PATH = f"{OUTPUT_PATH}/{MODEL_NAME}/checkpoint/"
+    TENSORBOARD_PATH_TRAINING = (
+        f"{OUTPUT_PATH}/{MODEL_NAME}/tensorboard/tensorboard_training/"
+    )
 
-    LOGGER_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '.log'
+    TENSORBOARD_PATH_VALIDATION = (
+        f"{OUTPUT_PATH}/{MODEL_NAME}/tensorboard/tensorboard_validation/"
+    )
+
+    TENSORBOARD_PATH_TESTING = (
+        f"{OUTPUT_PATH}/{MODEL_NAME}/tensorboard/tensorboard_testing/"
+    )
+
+
+    LOGGER_PATH = f"{OUTPUT_PATH}/{MODEL_NAME}.log"
 
     logger = Logger(MODEL_NAME, LOGGER_PATH).get_logger()
-    test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
+    test_logger = Logger(f'{MODEL_NAME}_test', LOGGER_PATH).get_logger()
 
     # Model
     model = getModel(args.model)

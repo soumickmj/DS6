@@ -35,24 +35,38 @@ class Encoder(nn.Module):
             """
             input_dim = self.input_channels if i == 0 else output_dim
             output_dim = num_filters[i]
-            
+
             if i != 0:
                 layers.append(nn.AvgPool3d(kernel_size=2, stride=2, padding=0, ceil_mode=True))
-            
-            layers.append(nn.Conv3d(input_dim, output_dim, kernel_size=3, padding=int(padding)))
-            layers.append(nn.ReLU(inplace=True))
+
+            layers.extend(
+                (
+                    nn.Conv3d(
+                        input_dim, output_dim, kernel_size=3, padding=int(padding)
+                    ),
+                    nn.ReLU(inplace=True),
+                )
+            )
 
             for _ in range(no_convs_per_block-1):
-                layers.append(nn.Conv3d(output_dim, output_dim, kernel_size=3, padding=int(padding)))
-                layers.append(nn.ReLU(inplace=True))
+                layers.extend(
+                    (
+                        nn.Conv3d(
+                            output_dim,
+                            output_dim,
+                            kernel_size=3,
+                            padding=int(padding),
+                        ),
+                        nn.ReLU(inplace=True),
+                    )
+                )
 
         self.layers = nn.Sequential(*layers)
 
         self.layers.apply(init_weights)
 
     def forward(self, input):
-        output = self.layers(input)
-        return output
+        return self.layers(input)
 
 class AxisAlignedConvGaussian(nn.Module):
     """
@@ -66,10 +80,7 @@ class AxisAlignedConvGaussian(nn.Module):
         self.no_convs_per_block = no_convs_per_block
         self.latent_dim = latent_dim
         self.posterior = posterior
-        if self.posterior:
-            self.name = 'Posterior'
-        else:
-            self.name = 'Prior'
+        self.name = 'Posterior' if self.posterior else 'Prior'
         self.encoder = Encoder(self.input_channels, self.num_filters, self.no_convs_per_block, initializers, posterior=self.posterior)
         self.conv_layer = nn.Conv3d(num_filters[-1], 2 * self.latent_dim, kernel_size=1, stride=1)
         self.show_img = 0
@@ -111,12 +122,7 @@ class AxisAlignedConvGaussian(nn.Module):
         mu = mu_log_sigma[:,:self.latent_dim]
         log_sigma = mu_log_sigma[:,self.latent_dim:]
 
-        #This is a multivariate normal with diagonal covariance matrix sigma
-        #https://github.com/pytorch/pytorch/pull/11178
-        dist = Independent(Normal(loc=mu, scale=torch.exp(log_sigma)),1)
-        # cov = torch.stack([torch.diag(sigma) for sigma in torch.exp(log_sigma)])
-        # dist = torch.distributions.multivariate_normal.MultivariateNormal(mu.float(), cov.float())
-        return dist
+        return Independent(Normal(loc=mu, scale=torch.exp(log_sigma)),1)
 
 class Fcomb(nn.Module):
     """
@@ -132,14 +138,19 @@ class Fcomb(nn.Module):
         self.num_filters = num_filters
         self.latent_dim = latent_dim
         self.use_tile = use_tile
-        self.no_convs_fcomb = no_convs_fcomb 
+        self.no_convs_fcomb = no_convs_fcomb
         self.name = 'Fcomb'
 
         if self.use_tile:
-            layers = []
+            layers = [
+                nn.Conv3d(
+                    self.num_filters[0] + self.latent_dim,
+                    self.num_filters[0],
+                    kernel_size=1,
+                )
+            ]
 
-            #Decoder of N x a 1x1 convolution followed by a ReLU activation function except for the last layer
-            layers.append(nn.Conv3d(self.num_filters[0]+self.latent_dim, self.num_filters[0], kernel_size=1))
+
             layers.append(nn.ReLU(inplace=True))
 
             for _ in range(no_convs_fcomb-2):
@@ -239,12 +250,11 @@ class ProbabilisticUnet(nn.Module):
         """
         if testing == False:
             z_prior = self.prior_latent_space.rsample()
-            self.z_prior_sample = z_prior
         else:
             #You can choose whether you mean a sample or the mean here. For the GED it is important to take a sample.
             #z_prior = self.prior_latent_space.base_dist.loc 
             z_prior = self.prior_latent_space.sample()
-            self.z_prior_sample = z_prior
+        self.z_prior_sample = z_prior
         return self.fcomb.forward(self.unet_features,z_prior)
 
 
@@ -256,9 +266,8 @@ class ProbabilisticUnet(nn.Module):
         """
         if use_posterior_mean:
             z_posterior = self.posterior_latent_space.loc
-        else:
-            if calculate_posterior:
-                z_posterior = self.posterior_latent_space.rsample()
+        elif calculate_posterior:
+            z_posterior = self.posterior_latent_space.rsample()
         return self.fcomb.forward(self.unet_features, z_posterior)
 
     def kl_divergence(self, analytic=True, calculate_posterior=False, z_posterior=None):
@@ -269,26 +278,24 @@ class ProbabilisticUnet(nn.Module):
         """
         if analytic:
             #Neeed to add this to torch source code, see: https://github.com/pytorch/pytorch/issues/13545
-            kl_div = kl.kl_divergence(self.posterior_latent_space, self.prior_latent_space)
-        else:
-            if calculate_posterior:
-                z_posterior = self.posterior_latent_space.rsample()
-            log_posterior_prob = self.posterior_latent_space.log_prob(z_posterior)
-            log_prior_prob = self.prior_latent_space.log_prob(z_posterior)
-            kl_div = log_posterior_prob - log_prior_prob
-        return kl_div
+            return kl.kl_divergence(self.posterior_latent_space, self.prior_latent_space)
+        if calculate_posterior:
+            z_posterior = self.posterior_latent_space.rsample()
+        log_posterior_prob = self.posterior_latent_space.log_prob(z_posterior)
+        log_prior_prob = self.prior_latent_space.log_prob(z_posterior)
+        return log_posterior_prob - log_prior_prob
 
     def elbo(self, segm, analytic_kl=True, reconstruct_posterior_mean=False):
         """
         Calculate the evidence lower bound of the log-likelihood of P(Y|X)
         """        
         z_posterior = self.posterior_latent_space.rsample()
-        
+
         self.kl = torch.mean(self.kl_divergence(analytic=analytic_kl, calculate_posterior=False, z_posterior=z_posterior))
 
         #Here we use the posterior sample sampled above
         self.reconstruction = self.reconstruct(use_posterior_mean=reconstruct_posterior_mean, calculate_posterior=False, z_posterior=z_posterior)
-        
+
         reconstruction_loss = ce_loss(logits=self.reconstruction, labels=segm, n_classes=self.num_classes, loss_mask=None, one_hot_labels=False)
         self.reconstruction_loss = reconstruction_loss['sum']
         self.mean_reconstruction_loss = reconstruction_loss['mean']

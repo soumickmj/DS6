@@ -17,12 +17,34 @@ class DownConvBlock(nn.Module):
         if pool:
             layers.append(nn.AvgPool3d(kernel_size=2, stride=2, padding=0, ceil_mode=True))
 
-        layers.append(nn.Conv3d(input_dim, output_dim, kernel_size=3, stride=1, padding=int(padding)))
-        layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Conv3d(output_dim, output_dim, kernel_size=3, stride=1, padding=int(padding)))
-        layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Conv3d(output_dim, output_dim, kernel_size=3, stride=1, padding=int(padding)))
-        layers.append(nn.ReLU(inplace=True))
+        layers.extend(
+            (
+                nn.Conv3d(
+                    input_dim,
+                    output_dim,
+                    kernel_size=3,
+                    stride=1,
+                    padding=int(padding),
+                ),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(
+                    output_dim,
+                    output_dim,
+                    kernel_size=3,
+                    stride=1,
+                    padding=int(padding),
+                ),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(
+                    output_dim,
+                    output_dim,
+                    kernel_size=3,
+                    stride=1,
+                    padding=int(padding),
+                ),
+                nn.ReLU(inplace=True),
+            )
+        )
 
         self.layers = nn.Sequential(*layers)
 
@@ -52,7 +74,7 @@ class UpConvBlock(nn.Module):
             up = nn.functional.interpolate(x, mode='trilinear', scale_factor=2, align_corners=True) #chaneged to trilinear for 3D
         else:
             up = self.upconv_layer(x)
-        
+
         assert up.shape[3] == bridge.shape[3]
         out = torch.cat([up, bridge], 1)
         out =  self.conv_block(out)

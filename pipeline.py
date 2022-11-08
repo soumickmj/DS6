@@ -118,24 +118,20 @@ class Pipeline:
         if is_train:
             subjects_dataset = tio.SubjectsDataset(subjects)
             sampler = tio.data.UniformSampler(self.patch_size)
-            patches_queue = tio.Queue(
-                                        subjects_dataset,
-                                        max_length=(self.samples_per_epoch//len(subjects))*2,
-                                        samples_per_volume=self.samples_per_epoch//len(subjects),
-                                        sampler=sampler,
-                                        num_workers=0,
-                                        start_background=True
-                                    )
-            return patches_queue
+            return tio.Queue(
+                subjects_dataset,
+                max_length=(self.samples_per_epoch // len(subjects)) * 2,
+                samples_per_volume=self.samples_per_epoch // len(subjects),
+                sampler=sampler,
+                num_workers=0,
+                start_background=True,
+            )
+
         else:
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
             grid_samplers = []
-            for i in range(len(subjects)):
-                grid_sampler = tio.inference.GridSampler(
-                                                            subjects[i],
-                                                            self.patch_size,
-                                                            overlap,
-                                                        )
+            for subject_ in subjects:
+                grid_sampler = tio.inference.GridSampler(subject_, self.patch_size, overlap)
                 grid_samplers.append(grid_sampler)
             return torch.utils.data.ConcatDataset(grid_samplers)
 

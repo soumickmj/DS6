@@ -94,8 +94,7 @@ class Attention_block(nn.Module):
         x1 = self.W_x(x)
         psi = self.relu(g1 + x1)
         psi = self.psi(psi)
-        out = x * psi
-        return out
+        return x * psi
 
 
 class AttU_Net(nn.Module):

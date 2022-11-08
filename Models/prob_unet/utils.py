@@ -14,14 +14,14 @@ def truncated_normal_(tensor, mean=0, std=1):
     tensor.data.mul_(std).add_(mean)
 
 def init_weights(m):
-    if type(m) == nn.Conv2d or type(m) == nn.ConvTranspose2d:
+    if type(m) in [nn.Conv2d, nn.ConvTranspose2d]:
         nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='relu')
         #nn.init.normal_(m.weight, std=0.001)
         #nn.init.normal_(m.bias, std=0.001)
         truncated_normal_(m.bias, mean=0, std=0.001)
 
 def init_weights_orthogonal_normal(m):
-    if type(m) == nn.Conv2d or type(m) == nn.ConvTranspose2d:
+    if type(m) in [nn.Conv2d, nn.ConvTranspose2d]:
         nn.init.orthogonal_(m.weight)
         truncated_normal_(m.bias, mean=0, std=0.001)
         #nn.init.normal_(m.bias, std=0.001)
@@ -30,17 +30,14 @@ def l2_regularisation(m):
     l2_reg = None
 
     for W in m.parameters():
-        if l2_reg is None:
-            l2_reg = W.norm(2)
-        else:
-            l2_reg = l2_reg + W.norm(2)
+        l2_reg = W.norm(2) if l2_reg is None else l2_reg + W.norm(2)
     return l2_reg
 
 def save_mask_prediction_example(mask, pred, iter):
-	plt.imshow(pred[0,:,:],cmap='Greys')
-	plt.savefig('images/'+str(iter)+"_prediction.png")
-	plt.imshow(mask[0,:,:],cmap='Greys')
-	plt.savefig('images/'+str(iter)+"_mask.png")
+    plt.imshow(pred[0,:,:],cmap='Greys')
+    plt.savefig(f'images/{str(iter)}_prediction.png')
+    plt.imshow(mask[0,:,:],cmap='Greys')
+    plt.savefig(f'images/{str(iter)}_mask.png')
 
 def ce_loss(labels, logits, n_classes, loss_mask=None, one_hot_labels=True):
     """

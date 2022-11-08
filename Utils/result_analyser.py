@@ -36,7 +36,7 @@ def create_diff_mask_binary(predicted, label):
     return rgb_image
 
 def save_color_nifti(vol3D, output_path):
-    shape_3d = vol3D.shape[0:3]
+    shape_3d = vol3D.shape[:3]
     rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
     vol3D = vol3D.copy().view(dtype=rgb_dtype).reshape(shape_3d)  # copy used to force fresh internal structure
     ni_img = nib.Nifti1Image(vol3D, np.eye(4))
@@ -56,7 +56,7 @@ def save_tifRGB(image3D, output_path):
     Method to convert 3D tensor to tiff image
     """
     image_list = []
-    for i in range(0, image3D.shape[-2]):
+    for i in range(image3D.shape[-2]):
         image = image3D[...,i,:]
         image = Image.fromarray(image.astype('uint8'), 'RGB')
         # if contains_colour((255,255,255),image.getcolors()):
@@ -71,8 +71,7 @@ def save_tifRGB(image3D, output_path):
     
 def dice(pred, true, k = 1):
     intersection = np.sum(pred[true==k]) * 2.0
-    dice = intersection / (np.sum(pred) + np.sum(true))
-    return dice
+    return intersection / (np.sum(pred) + np.sum(true))
 
 def IoU(pred, true):
     intersection = np.logical_and(pred, true)

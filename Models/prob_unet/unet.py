@@ -26,11 +26,7 @@ class Unet(nn.Module):
             input = self.input_channels if i == 0 else output
             output = self.num_filters[i]
 
-            if i == 0:
-                pool = False
-            else:
-                pool = True
-
+            pool = i != 0
             self.contracting_path.append(DownConvBlock(input, output, initializers, padding, pool=pool))
 
         self.upsampling_path = nn.ModuleList()

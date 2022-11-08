@@ -3,6 +3,7 @@
 
 """
 
+
 import argparse
 
 import apex
@@ -127,8 +128,12 @@ if __name__ == '__main__':
     if args.deform:
         old_model_names = ["model1", "model2", "model3"]  #TODO: add previously pretrained model names
     else:
-        old_model_names = ["set" + str(SET_NUMBER) + "_fold1", "set" + str(SET_NUMBER) + "_fold2",
-                           "set" + str(SET_NUMBER) + "_fold3"]
+        old_model_names = [
+            f"set{str(SET_NUMBER)}_fold1",
+            f"set{str(SET_NUMBER)}_fold2",
+            f"set{str(SET_NUMBER)}_fold3",
+        ]
+
 
     for training_set, validation_set, test_set, old_model_name in zip(FoldManager.getTrainingFolds(SET_NUMBER),
                                                                       FoldManager.getValidationFolds(SET_NUMBER),
@@ -136,16 +141,25 @@ if __name__ == '__main__':
                                                                       old_model_names):
 
         if args.deform:
-            NEW_MODEL_NAME = old_model_name + '_deformation'  # TODO: change this depending on best deformation model acheived
+            NEW_MODEL_NAME = f'{old_model_name}_deformation'
         else:
             NEW_MODEL_NAME = MODEL_NAME + old_model_name
 
-        CHECKPOINT_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '/checkpoint/'
-        TENSORBOARD_PATH_TRAINING = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_training/'
-        TENSORBOARD_PATH_VALIDATION = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_validation/'
-        TENSORBOARD_PATH_TESTING = OUTPUT_PATH + "/" + MODEL_NAME + '/tensorboard/tensorboard_testing/'
+        CHECKPOINT_PATH = f"{OUTPUT_PATH}/{MODEL_NAME}/checkpoint/"
+        TENSORBOARD_PATH_TRAINING = (
+            f"{OUTPUT_PATH}/{MODEL_NAME}/tensorboard/tensorboard_training/"
+        )
 
-        LOGGER_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '.log'
+        TENSORBOARD_PATH_VALIDATION = (
+            f"{OUTPUT_PATH}/{MODEL_NAME}/tensorboard/tensorboard_validation/"
+        )
+
+        TENSORBOARD_PATH_TESTING = (
+            f"{OUTPUT_PATH}/{MODEL_NAME}/tensorboard/tensorboard_testing/"
+        )
+
+
+        LOGGER_PATH = f"{OUTPUT_PATH}/" + MODEL_NAME + '.log'
         logger = Logger(MODEL_NAME, LOGGER_PATH).get_logger()
         test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
@@ -166,13 +180,13 @@ if __name__ == '__main__':
 
         writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
         writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
-    
+
         pipeline = Pipeline(model=model, optimizer=optimizer, logger=logger, with_apex=args.apex, num_epochs=args.num_epochs,
                         dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, deform=args.deform,
                         writer_training=writer_training, writer_validating=writer_validating,
                         stride_depth=args.stride_depth, stride_length=args.stride_length, stride_width=args.stride_width,
                         training_set=training_set, validation_set=validation_set, test_set=test_set,
-                        predict_only=(not args.train) and (not args.test))    
+                        predict_only=(not args.train) and (not args.test))
         try:
             if args.train:
                 pipeline.train()

@@ -238,7 +238,7 @@ class U_Net_DeepSup_level4(nn.Module):
         self.Conv_d3 = conv_block(filters[1], 1)
         self.Conv_d4 = conv_block(filters[2], 1)
         self.Conv_d5 = conv_block(filters[3], 1)
-        
+
 
 
         self.Up5 = up_conv(filters[4], filters[3])

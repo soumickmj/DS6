@@ -57,13 +57,11 @@ def warp_image(image, displacement, multi=False):
     grid = displacement + grid
     grid = torch.cat([grid] * batch_size, dim=0)  # batch number of times
 
-    # warp image
-    if multi:
-        warped_image = F.grid_sample(image, grid)  #[B, C, D, H, W]
-    else:
-        warped_image = F.grid_sample(image.unsqueeze(0).unsqueeze(0), grid) #[B, C, D, H, W], unsqueeze to give batch and channel dimension
-
-    return warped_image  #[B, C, D, H, W]
+    return (
+        F.grid_sample(image, grid)
+        if multi
+        else F.grid_sample(image.unsqueeze(0).unsqueeze(0), grid)
+    )
 
 """
     Base class for kernel transformations
