@@ -6,8 +6,6 @@
 import argparse
 import random
 import os
-
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
@@ -50,10 +48,10 @@ if __name__ == '__main__':
                              "4{Probabilistic-U-Net};\n"
                              "5{V2-Probabilistic-U-Net};")
     parser.add_argument("--model_name",
-                        default="trial_ProbU2Dv2_At0",
+                        default="trial_ProbU3Dv2_At0",
                         help="Name of the model")
-    parser.add_argument("--dataset_path", 
-                        default="/project/schatter/FranziVSeg/Data/Forrest_Organised/Fold0",
+    parser.add_argument("--dataset_path",
+                        default="/project/schatter/FranziVSeg/Data/MSSEG_Organised/FLAIR_Fold0",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
                              "Example: /home/dataset/")
@@ -62,13 +60,13 @@ if __name__ == '__main__':
                         help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausiblelabel, test_plausiblelabel, validate_plausiblelabel")
     parser.add_argument("--plauslabel_mode",
                         type=int,
-                        default=4,
+                        default=2,
                         help="1{Use-Plausable-And-Main-For-Training}; \n"
                              "2{Use-Plausable-Only-For-Training}; \n"
                              "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
                              "4{Use-Plausable-Only-For-TrainAndValid};")
     parser.add_argument("--output_path",
-                        default="/project/schatter/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
+                        default="/project/schatter/FranziVSeg/Output/MSSeg_FLAIR_Fold0",
                         help="Folder path to store output "
                              "Example: /home/output/")
 
@@ -80,7 +78,7 @@ if __name__ == '__main__':
                         help="To test the model")
     parser.add_argument("--n_prob_test",
                         type=int,
-                        default=10,
+                        default=7,
                         help="N number of predictions are to be optained during testing for the ProbUNets")
     parser.add_argument('--predict',
                         default=False, action=argparse.BooleanOptionalAction,
@@ -106,10 +104,10 @@ if __name__ == '__main__':
                         default=False, action=argparse.BooleanOptionalAction,
                         help="To use deformation for training")
     parser.add_argument('--distloss',
-                        default=False, action=argparse.BooleanOptionalAction,
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
     parser.add_argument('--distloss_mode',
-                        default=2, type=int,
+                        default=3, type=int,
                         help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
                              "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
                              "2: GeomLoss Sinkhorn (Default cost function) \n"
@@ -120,7 +118,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--batch_size",
                         type=int,
-                        default=10,
+                        default=20,
                         help="Batch size for training")
     parser.add_argument("--batch_size_fidloss",
                         type=int,
@@ -139,23 +137,23 @@ if __name__ == '__main__':
                         default=64,
                         help="Patch size of the input volume")
     parser.add_argument("--slice2D_shape",
-                        default="480,640",
+                        default="",
                         help="For 2D models, set it to the desired shape. Or blank")
     parser.add_argument("--stride_depth",
                         type=int,
-                        default=1,
+                        default=16,
                         help="Strides for dividing the input volume into patches in depth dimension (To be used during validation and inference)")
     parser.add_argument("--stride_width",
                         type=int,
-                        default=640,
+                        default=32,
                         help="Strides for dividing the input volume into patches in width dimension (To be used during validation and inference)")
     parser.add_argument("--stride_length",
                         type=int,
-                        default=480,
+                        default=32,
                         help="Strides for dividing the input volume into patches in length dimension (To be used during validation and inference)")
     parser.add_argument("--samples_per_epoch",
                         type=int,
-                        default=1500,
+                        default=10000,
                         help="Number of samples per epoch")
     parser.add_argument("--num_worker",
                         type=int,
@@ -190,7 +188,7 @@ if __name__ == '__main__':
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
     
-    wandb.init(project="ProbVSegFranzi", entity="mickchimp", id=MODEL_NAME, name=MODEL_NAME, resume=True, config=args.__dict__)
+    wandb.init(project="ProbMSSegFranzi", entity="mickchimp", id=MODEL_NAME, name=MODEL_NAME, resume=True, config=args.__dict__)
     wandb.watch(model, log_freq=100)
 
     pipeline = Pipeline(cmd_args=args, model=model, logger=logger,

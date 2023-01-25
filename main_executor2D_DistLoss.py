@@ -53,7 +53,7 @@ if __name__ == '__main__':
                         default="trial_ProbU2Dv2_At0",
                         help="Name of the model")
     parser.add_argument("--dataset_path", 
-                        default="/project/schatter/FranziVSeg/Data/Forrest_Organised/Fold0",
+                        default="/media/Enterprise/FranziVSeg/Data/Forrest_Organised/Fold0",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
                              "Example: /home/dataset/")
@@ -62,13 +62,13 @@ if __name__ == '__main__':
                         help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausiblelabel, test_plausiblelabel, validate_plausiblelabel")
     parser.add_argument("--plauslabel_mode",
                         type=int,
-                        default=4,
+                        default=2,
                         help="1{Use-Plausable-And-Main-For-Training}; \n"
                              "2{Use-Plausable-Only-For-Training}; \n"
                              "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
                              "4{Use-Plausable-Only-For-TrainAndValid};")
     parser.add_argument("--output_path",
-                        default="/project/schatter/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
+                        default="/media/Enterprise/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
                         help="Folder path to store output "
                              "Example: /home/output/")
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
     parser.add_argument('--load_path',
-                        # default="/home/schatter/Soumick/Output/DS6/OrigVol_MaskedFDIPv0_UNetV2/checkpoint",
+                        # default="/media/Enterprise/FranziVSeg/Output/Forrest_ManualSeg_Fold0/ProbU2Dv2_DistLossPureFID_At2_pLBL4TrainANDMan4Val/checkpoint",
                         default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('--load_best',
@@ -106,7 +106,7 @@ if __name__ == '__main__':
                         default=False, action=argparse.BooleanOptionalAction,
                         help="To use deformation for training")
     parser.add_argument('--distloss',
-                        default=False, action=argparse.BooleanOptionalAction,
+                        default=True, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
     parser.add_argument('--distloss_mode',
                         default=2, type=int,
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--batch_size",
                         type=int,
-                        default=10,
+                        default=4,
                         help="Batch size for training")
     parser.add_argument("--batch_size_fidloss",
                         type=int,

@@ -135,7 +135,6 @@ class Pipeline:
                 op_distloss_func = GeomDistLoss(loss=dist_loss_type, kernel=kernel)
                 op_distloss_func.cuda()
                 def GeomDistLossWrapper(x, y):
-                    # return op_distloss_func(x.view(x.shape[0], x.shape[1], -1), y.view(y.shape[0], y.shape[1], -1)).mean()
                     return op_distloss_func(x.reshape(x.shape[0], x.shape[1], -1), y.reshape(y.shape[0], y.shape[1], -1)).mean()
                 self.op_distloss = GeomDistLossWrapper
             else:
