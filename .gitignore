@@ -156,3 +156,4 @@ pipeline_mod.py
 main_executor_mod.py
 Utils/fid/ResNeXt-3-class-best-latest.pth
 rough.py
+copier.py
