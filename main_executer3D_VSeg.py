@@ -6,8 +6,6 @@
 import argparse
 import random
 import os
-
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import numpy as np
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
@@ -48,12 +46,14 @@ if __name__ == '__main__':
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net}; \n"
                              "4{Probabilistic-U-Net};\n"
-                             "5{V2-Probabilistic-U-Net};")
+                             "5{V2-Probabilistic-U-Net};"n"
+                             "6{S-S-N};"n"
+                             "7{VI-UNet};")
     parser.add_argument("--model_name",
-                        default="trial_ProbU2Dv2_At0",
+                        default="prova_3DVSeg",
                         help="Name of the model")
-    parser.add_argument("--dataset_path", 
-                        default="/project/schatter/FranziVSeg/Data/Forrest_Organised/Fold0",
+    parser.add_argument("--dataset_path",
+                        default="/home/schatter/Soumick/FranziVSeg/DS_Original/Vols/Forrest_Organised/Fold0",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
                              "Example: /home/dataset/")
@@ -68,7 +68,7 @@ if __name__ == '__main__':
                              "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
                              "4{Use-Plausable-Only-For-TrainAndValid};")
     parser.add_argument("--output_path",
-                        default="/project/schatter/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
+                        default="/home/schatter/Soumick/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
                         help="Folder path to store output "
                              "Example: /home/output/")
 
@@ -109,7 +109,7 @@ if __name__ == '__main__':
                         default=False, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
     parser.add_argument('--distloss_mode',
-                        default=2, type=int,
+                        default=3, type=int,
                         help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
                              "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
                              "2: GeomLoss Sinkhorn (Default cost function) \n"
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
     parser.add_argument("--batch_size",
                         type=int,
-                        default=10,
+                        default=50,
                         help="Batch size for training")
     parser.add_argument("--batch_size_fidloss",
                         type=int,
@@ -139,23 +139,23 @@ if __name__ == '__main__':
                         default=64,
                         help="Patch size of the input volume")
     parser.add_argument("--slice2D_shape",
-                        default="480,640",
+                        default="",
                         help="For 2D models, set it to the desired shape. Or blank")
     parser.add_argument("--stride_depth",
                         type=int,
-                        default=1,
+                        default=16,
                         help="Strides for dividing the input volume into patches in depth dimension (To be used during validation and inference)")
     parser.add_argument("--stride_width",
                         type=int,
-                        default=640,
+                        default=32,
                         help="Strides for dividing the input volume into patches in width dimension (To be used during validation and inference)")
     parser.add_argument("--stride_length",
                         type=int,
-                        default=480,
+                        default=32,
                         help="Strides for dividing the input volume into patches in length dimension (To be used during validation and inference)")
     parser.add_argument("--samples_per_epoch",
                         type=int,
-                        default=1500,
+                        default=4000,
                         help="Number of samples per epoch")
     parser.add_argument("--num_worker",
                         type=int,

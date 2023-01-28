@@ -48,9 +48,11 @@ if __name__ == '__main__':
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net}; \n"
                              "4{Probabilistic-U-Net};\n"
-                             "5{V2-Probabilistic-U-Net};")
+                             "5{V2-Probabilistic-U-Net};"n"
+                             "6{S-S-N};"n"
+                             "7{VI-UNet};")
     parser.add_argument("--model_name",
-                        default="trial_ProbU2Dv2_At0",
+                        default="prova_2DMSSeg",
                         help="Name of the model")
     parser.add_argument("--dataset_path", 
                         default="/project/schatter/FranziVSeg/Data/MSSEG_Organised/FLAIR_Fold0",
@@ -109,7 +111,7 @@ if __name__ == '__main__':
                         default=False, action=argparse.BooleanOptionalAction,
                         help="To compute loss by comparing distributions of output and GT (for ProbUNet)")
     parser.add_argument('--distloss_mode',
-                        default=2, type=int,
+                        default=3, type=int,
                         help="0: Pure FID for distloss (repeats the input to make 3 channels as pretrained on RGB imagenet) \n"
                              "1: For Fréchet ResNeXt Distance (trained on single-channel MRIs) \n"
                              "2: GeomLoss Sinkhorn (Default cost function) \n"

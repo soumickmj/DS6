@@ -62,7 +62,7 @@ if __name__ == '__main__':
                         help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausiblelabel, test_plausiblelabel, validate_plausiblelabel")
     parser.add_argument("--plauslabel_mode",
                         type=int,
-                        default=2,
+                        default=4,
                         help="1{Use-Plausable-And-Main-For-Training}; \n"
                              "2{Use-Plausable-Only-For-Training}; \n"
                              "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
