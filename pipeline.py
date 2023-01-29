@@ -123,8 +123,7 @@ class Pipeline:
         else:
             self.ProbFlag = 0
 
-        if self.ProbFlag > 0:
-            self.fid_calc = FastFID(useInceptionNet=True, batch_size=-1, gradient_checkpointing=True)
+        self.fid_calc = FastFID(useInceptionNet=True, batch_size=-1, gradient_checkpointing=True)
 
         self.distloss_mode = cmd_args.distloss_mode
 
@@ -275,6 +274,12 @@ class Pipeline:
                     output1 = 0
                     level = 0
 
+                    if hasattr(self.model, 'num_classes') and self.model.num_classes != 1:
+                        if local_labels.shape[1] == 1:
+                            local_labels = local_labels.squeeze(1).to(torch.int64)
+                        else:
+                            local_labels = torch.argmax(local_labels, 1)
+
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
                     if self.ProbFlag == 0:
@@ -282,7 +287,7 @@ class Pipeline:
                             logits, state = self.model(local_batch)
                             floss = self.ssnloss(logits, state['distribution'], local_labels)
                         elif self.modelID == 7: #VIMH
-                            soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test, num_classes=1)
+                            soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test)
                             floss, output = self.vimhloss(soft_out, kl, local_labels, train=True)
                         else:
                             for output in self.model(local_batch): 
@@ -475,11 +480,20 @@ class Pipeline:
 
                 floss_iter = 0
                 output1 = 0
+                classMode = 0
                 try:
                     with autocast(enabled=self.with_apex):
                         # Forward propagation
                         loss_ratios = [1, 0.66, 0.34] #TODO param
                         level = 0
+                        
+                        if hasattr(self.model, 'num_classes') and self.model.num_classes != 1:
+                            if local_labels.shape[1] == 1:
+                                local_labels = local_labels.squeeze(1).to(torch.int64)
+                                classMode = 1
+                            else:
+                                local_labels = torch.argmax(local_labels, 1)
+                                classMode = 2
 
                         # Forward propagation
                         if self.ProbFlag == 0:
@@ -488,10 +502,10 @@ class Pipeline:
                                 floss_iter = self.ssnloss(logits, state['distribution'], local_labels)
                                 # prob = torch.nn.functional.softmax(logits, dim=1)
                                 # _, output = torch.max(logits, dim=1)
-                                output = logits
+                                output1 = logits
                             elif self.modelID == 7: #VIMH
-                                soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test, num_classes=1)
-                                floss_iter, output = self.vimhloss(soft_out, kl, local_labels, train=False)
+                                soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test)
+                                floss_iter, output1 = self.vimhloss(soft_out, kl, local_labels, train=False)
                             else:
                                 for output in self.model(local_batch):
                                     if level == 0:
@@ -530,9 +544,16 @@ class Pipeline:
                         
                 except Exception as error:
                     self.logger.exception(error)
+
+                if classMode == 1:
+                    output1 = output1.unsqueeze(1).to(local_batch.dtype)
+                    local_labels = local_labels.unsqueeze(1).to(local_batch.dtype)
+                elif classMode == 2:
+                    output1 = torch.nn.functional.one_hot(output1, self.model.num_classes).to(local_batch.dtype)
+                    local_labels = torch.nn.functional.one_hot(local_labels, self.model.num_classes).to(local_batch.dtype)
                 
                 floss += floss_iter
-                if self.ProbFlag == 0:
+                if self.ProbFlag == 0 and self.modelID in [1,2,3]:
                     dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 else:
                     dl, ds = self.dice(output1, local_labels)
@@ -571,7 +592,7 @@ class Pipeline:
 
             save_model(self.checkpoint_path, chk_dict)
 
-    def test(self, test_logger, save_results=True, test_subjects=None): #for testing models other than Probabilistic UNets
+    def test(self, test_logger, save_results=True, test_subjects=None, tag=""): #for testing models other than Probabilistic UNets
         test_logger.debug('Testing...')
 
         if test_subjects is None:
@@ -583,7 +604,7 @@ class Pipeline:
         overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
 
         df = pd.DataFrame(columns = ["Subject", "Dice", "IoU"])
-        result_root = os.path.join(self.output_path, self.model_name, "results_"+("best" if self.load_best else "last"))
+        result_root = os.path.join(self.output_path, self.model_name, f"results_{tag}")
         os.makedirs(result_root, exist_ok=True)
 
         self.model.eval()
@@ -668,7 +689,7 @@ class Pipeline:
 
         df.to_csv(os.path.join(result_root, "Results_Main.csv"))
 
-    def test_prob(self, test_logger, save_results=True, test_subjects=None): #for testing Probabilistic UNets
+    def test_prob(self, test_logger, save_results=True, test_subjects=None, tag=""): #for testing Probabilistic UNets
         test_logger.debug('Probabilistic Testing...')
         if self.ProbFlag == 0:
             test_logger.debug("Warning: The probabilistic flag is set to 0, but currently using the probabilistic testing function. This test function is mainly for testing Probabilistic UNets. test() function is meant for the other models. However, if it is desired to sample N-sampled from those models using MC-Dropout, then using this function is acqurate...")
@@ -684,7 +705,7 @@ class Pipeline:
 
         df = pd.DataFrame(columns = ["Subject", "ProbPredID", "Dice", "IoU"])
         dfProb = pd.DataFrame(columns = ["Subject", "maxDice", "maxIoU", "DistLoss", "FID", "GenEngDist"])
-        result_root = os.path.join(self.output_path, self.model_name, "results_"+("best" if self.load_best else "last"))
+        result_root = os.path.join(self.output_path, self.model_name, f"results_{tag}")
         os.makedirs(result_root, exist_ok=True)
 
         self.model.eval()
@@ -721,7 +742,7 @@ class Pipeline:
 
                 patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=self.batch_size, shuffle=False, num_workers=self.num_worker)
 
-                distloss = 0
+                distloss = 0                
                 for index, patches_batch in enumerate(tqdm(patch_loader)):
                     local_batch = self.normaliser(patches_batch['img'][tio.DATA].float().cuda())
                     # local_labels = patches_batch['label'][tio.DATA].float().cuda()
@@ -745,6 +766,15 @@ class Pipeline:
                         local_batch = local_batch.squeeze(-1)
                         # local_labels = local_labels.squeeze(-1)
 
+                    classMode = 0   
+                    if hasattr(self.model, 'num_classes') and self.model.num_classes != 1:
+                        if local_plauslabels.shape[1] == 1:
+                            # local_labels = local_labels.squeeze(1).to(torch.int64)
+                            classMode = 1
+                        else:
+                            # local_labels = torch.argmax(local_labels, 1)
+                            classMode = 2
+
                     with autocast(enabled=self.with_apex):
                         if self.ProbFlag == 0:          
                             outputs = []
@@ -755,7 +785,7 @@ class Pipeline:
                                     # _, output = torch.max(logits, dim=1)
                                     outputs.append(logits.detach().cpu())
                                 elif self.modelID == 7: #VIMH
-                                    soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test, num_classes=1)
+                                    soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test)
                                     _, output = self.vimhloss(soft_out, kl, None, train=False)
                                     outputs.append(output.detach().cpu())
                                 else:
@@ -778,7 +808,11 @@ class Pipeline:
                     # wandb.log({"loss": floss.detach().item()})
 
                     for nP in range(self.n_prob_test):
-                        output = outputs[nP].detach().cpu()
+                        output = outputs[nP]
+                        if classMode == 1:
+                            output = output.unsqueeze(1).to(local_batch.dtype).detach().cpu()
+                        elif classMode == 2:
+                            output = torch.nn.functional.one_hot(output, self.model.num_classes).to(local_batch.dtype).detach().cpu()
                         if self.dimMode == 2:
                             output = output.unsqueeze(-3)
                         output = torch.movedim(output, -3, -1).type(local_batch.type()) 
@@ -847,12 +881,13 @@ class Pipeline:
                 else:
                     datumProb = pd.DataFrame.from_dict(datumProb)
                 dfProb = pd.concat([dfProb, datumProb], ignore_index=True)
+                
 
-        wandb.summary['test_'+("best" if self.load_best else "last")+'_maxDice'] = datumProb.maxDice.median()
-        wandb.summary['test_'+("best" if self.load_best else "last")+'_maxIoU'] = datumProb.maxIoU.median()
-        wandb.summary['test_'+("best" if self.load_best else "last")+'_DistLoss'] = datumProb.DistLoss.median()
-        wandb.summary['test_'+("best" if self.load_best else "last")+'_FID'] = datumProb.FID.median()
-        wandb.summary['test_'+("best" if self.load_best else "last")+'_genEDist'] = datumProb.GenEngDist.median()
+        wandb.summary[f'test_{tag}_maxDice'] = datumProb.maxDice.median()
+        wandb.summary[f'test_{tag}_maxIoU'] = datumProb.maxIoU.median()
+        wandb.summary[f'test_{tag}_DistLoss'] = datumProb.DistLoss.median()
+        wandb.summary[f'test_{tag}_FID'] = datumProb.FID.median()
+        wandb.summary[f'test_{tag}_genEDist'] = datumProb.GenEngDist.median()
 
         # masterGTs = np.concatenate(masterGTs, axis=0)
         # masterResults = np.concatenate(masterResults, axis=0)

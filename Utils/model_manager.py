@@ -54,7 +54,8 @@ def getModel(model_no, is2D=False, n_prob_test=0): #Send model params from outsi
                                             posterior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2},
                                             ), 
             6: StochasticDeepMedic(input_channels=1, num_classes=1),
-            7: VIMH(num_models=n_prob_test, mutliHead_layer="BDec2", num_in=1, num_classes=1),
+            # 7: VIMH(num_models=n_prob_test, mutliHead_layer="BDec2", num_in=1, num_classes=1), #This was the original plan. But the memory requirement is too high. So, we are using the following line instead (i.e. 4 models, like the original work).
+            7: VIMH(num_models=4, mutliHead_layer="BDec2", num_in=1, num_classes=2),
             8: DOUNet2D()
         }
     else:

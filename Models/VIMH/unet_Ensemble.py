@@ -665,6 +665,7 @@ class UNet_Dec2_head(nn.Module):
 class UNet_Ensemble(nn.Module):
     def __init__(self, num_models=4, mutliHead_layer="Dec1", prior=0.1, num_in=4, num_classes=4):
         super(UNet_Ensemble, self).__init__()
+        self.num_classes = num_classes
         self.num_models = num_models
         self.multiHead = mutliHead_layer
         if self.multiHead is "BDec1":
@@ -706,11 +707,13 @@ class UNet_Ensemble(nn.Module):
         else:
             print("Only Multihead Layers for BDec1, BDec2, BDec3, BEnc, Dec1, Dec2, DDec2 and BIGBDec2 are implemented!!")
 
-    def forward(self, x, samples=3, num_classes=10, num_models=4, num_gpu=4):
+    def forward(self, x, samples=3, num_classes=None, num_models=4, num_gpu=4):
         outputs = []
         stds = []
         sum_kl = []
         x_size = x.size()
+        if not bool(num_classes):
+            num_classes = self.num_classes
         if self.multiHead is "BDec1":
             dec1 = self.base(x)
             for i in range(self.num_models):

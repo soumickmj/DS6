@@ -81,7 +81,7 @@ def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', f
     Method to load model, make sure to set the model to eval, use optimiser if want to continue training
     opt_level="O1"
     """
-    print('Loading model...')
+    print(f'Loading {batch_index} model...')
     model.cuda()
     checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])

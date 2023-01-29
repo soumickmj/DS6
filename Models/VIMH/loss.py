@@ -21,16 +21,14 @@ class VIMHLoss(nn.Module):
 
             # make ensemble prediction
             soft = F.softmax(soft_out.sum(0), dim=1)
-            preds = torch.argmax(soft, 1)
             l = self.loss_func(torch.log(soft + 1e-18), mask)
 
             # Sum whole loss and return it, along with the final predictions
-            return self.NUM_MODELS * self.LAMBDA * (l + self.klfactor * torch.sum(kl)) + l_dis, preds
+            return self.NUM_MODELS * self.LAMBDA * (l + self.klfactor * torch.sum(kl)) + l_dis, torch.argmax(soft, 1)
         else:
-            if bool(mask):
+            soft_out = soft_out.sum(0) # make ensemble prediction during eval (test or predict)
+            if mask is not None:
                 l = self.loss_func(torch.log(soft_out / self.NUM_MODELS + 1e-18), mask)
             else:
-                l = 0.0
-            # make ensemble prediction during eval (test or predict)
-            soft_out = soft_out.sum(0)
+                l = 0.0           
             return l, torch.argmax(soft_out, 1)
