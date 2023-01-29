@@ -28,6 +28,7 @@ __maintainer__ = "Soumick Chatterjee"
 __email__ = "soumick.chatterjee@ovgu.de"
 __status__ = "Production"
 
+
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.manual_seed(2020)

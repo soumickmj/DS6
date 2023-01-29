@@ -2,7 +2,7 @@
 """
 
 """
-
+import json
 import argparse
 import random
 import os
@@ -53,11 +53,11 @@ if __name__ == '__main__':
     parser.add_argument("--model_name",
                         default="prova_3DVSeg",
                         help="Name of the model")
-    parser.add_argument("--dataset_path",
-                        default="/home/schatter/Soumick/FranziVSeg/DS_Original/Vols/Forrest_Organised/Fold0",
-                        help="Path to folder containing dataset."
-                             "Further divide folders into train,validate,test, train_label,validate_label and test_label."
-                             "Example: /home/dataset/")
+    parser.add_argument("--datajson_path", 
+                        default="VSeg_local",
+                        help="Path to the json file (without the .json extension, only the name) which contains the path to the data and output. Must be present inside the support folder."
+                             "Must contain dataset_path, the folder which must be further divided folders into train,validate,test, train_label,validate_label and test_label."
+                             "Must contain output_path")
     parser.add_argument('--plauslabels',
                         default=True, action=argparse.BooleanOptionalAction,
                         help="Whether or not to use the plausable labels (training with multiple labels randomly). This will required three additional folders inside the dataset_path: train_plausiblelabel, test_plausiblelabel, validate_plausiblelabel")
@@ -68,10 +68,6 @@ if __name__ == '__main__':
                              "2{Use-Plausable-Only-For-Training}; \n"
                              "3{Use-Plausable-And-Main-For-TrainAndValid}; \n"
                              "4{Use-Plausable-Only-For-TrainAndValid};")
-    parser.add_argument("--output_path",
-                        default="/home/schatter/Soumick/FranziVSeg/Output/Forrest_ManualSeg_Fold0",
-                        help="Folder path to store output "
-                             "Example: /home/output/")
 
     parser.add_argument('--train',
                         default=True, action=argparse.BooleanOptionalAction,
@@ -164,6 +160,10 @@ if __name__ == '__main__':
                         help="Number of worker threads")
 
     args = parser.parse_args()
+
+    with open(f"./support/{args.datajson_path}.json", 'r') as json_file:
+            json_data = json.load(json_file)
+    args.__dict__.update(json_data)
 
     if args.deform:
         args.model_name += "_Deform"

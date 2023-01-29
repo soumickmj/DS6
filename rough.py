@@ -29,6 +29,7 @@ with autocast(enabled=False):
         times.append(time.time() - start)
 print(np.median(times))
 
+
 hajabarola
 
 ob = PartialResNeXt()
