@@ -53,13 +53,13 @@ def getModel(model_no, is2D=False, n_prob_test=0): #Send model params from outsi
                                             posterior_op=InjectionConvEncoder2D,
                                             posterior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2},
                                             ), 
-            6: StochasticDeepMedic(input_channels=1, num_classes=1),
+            6: StochasticDeepMedic(input_channels=1, num_classes=2, scale_factors=((5, 5), (3, 3), (1, 1))),
             # 7: VIMH(num_models=n_prob_test, mutliHead_layer="BDec2", num_in=1, num_classes=1), #This was the original plan. But the memory requirement is too high. So, we are using the following line instead (i.e. 4 models, like the original work).
             7: VIMH(num_models=4, mutliHead_layer="BDec2", num_in=1, num_classes=2),
             8: DOUNet2D()
         }
     else:
-        if model_no not in [1, 2, 3, 4, 5, 8]:
+        if model_no not in [1, 2, 3, 4, 5, 6, 8]:
             sys.exit(f"Invalid model ID {model_no} for 3D operations.")
         if model_no in [4]:
             print(f"Warning: Even though {model_no} has been implemented for 3D operations, it has bugs. Use with caution!")
@@ -74,6 +74,7 @@ def getModel(model_no, is2D=False, n_prob_test=0): #Send model params from outsi
                                             prior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2}, 
                                             posterior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2},
                                             ) ,
+            6: StochasticDeepMedic(input_channels=1, num_classes=2, scale_factors=((5, 5, 5), (3, 3, 3), (1, 1, 1))),
             8: DOUNet3D()
         }
     model = model_list.get(model_no, defaultModel)

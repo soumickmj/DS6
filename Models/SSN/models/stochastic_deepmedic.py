@@ -46,7 +46,7 @@ class StochasticDeepMedic(DeepMedic):
         cov_factor = cov_factor.view((batch_size, self.rank, self.num_classes, -1))
         cov_factor = cov_factor.flatten(2, 3)
         cov_factor = cov_factor.transpose(1, 2)
-
+                
         if "sampling_mask" in kwargs: #if statement added by Soumick: we are only predicting vessels, so for us - both non-vessel brain and background are the same class (i.e. background)
             # covariance in the background tens to blow up to infinity, hence set to 0 outside the ROI
             mask = kwargs['sampling_mask']

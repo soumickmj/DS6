@@ -501,8 +501,7 @@ class Pipeline:
                                 logits, state = self.model(local_batch)
                                 floss_iter = self.ssnloss(logits, state['distribution'], local_labels)
                                 # prob = torch.nn.functional.softmax(logits, dim=1)
-                                # _, output = torch.max(logits, dim=1)
-                                output1 = logits
+                                _, output1 = torch.max(logits, dim=1)
                             elif self.modelID == 7: #VIMH
                                 soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test)
                                 floss_iter, output1 = self.vimhloss(soft_out, kl, local_labels, train=False)
@@ -782,8 +781,8 @@ class Pipeline:
                                 if self.modelID == 6: #SSN
                                     logits, _ = self.model(local_batch)
                                     # prob = torch.nn.functional.softmax(logits, dim=1)
-                                    # _, output = torch.max(logits, dim=1)
-                                    outputs.append(logits.detach().cpu())
+                                    _, output = torch.max(logits, dim=1)
+                                    outputs.append(output.detach().cpu())
                                 elif self.modelID == 7: #VIMH
                                     soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test)
                                     _, output = self.vimhloss(soft_out, kl, None, train=False)

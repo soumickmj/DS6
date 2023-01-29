@@ -43,7 +43,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--model",
                         type=int,
-                        default=7,
+                        default=6,
                         help="1{U-Net}; \n"
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net}; \n"
@@ -53,7 +53,7 @@ if __name__ == '__main__':
                              "7{VI-MH};\n"
                              "8{DO-UNet};")
     parser.add_argument("--model_name",
-                        default="prova_2DMSSeg",
+                        default="prova_2DMSSegX",
                         help="Name of the model")
     parser.add_argument("--datajson_path", 
                         default="MSSeg_FCM",
