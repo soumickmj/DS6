@@ -99,7 +99,7 @@ if __name__ == '__main__':
                         default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('--load_best',
-                        default=True, action=argparse.BooleanOptionalAction,
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
     parser.add_argument('--deform',
                         default=False, action=argparse.BooleanOptionalAction,

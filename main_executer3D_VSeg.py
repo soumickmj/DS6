@@ -73,8 +73,11 @@ if __name__ == '__main__':
                         default=True, action=argparse.BooleanOptionalAction,
                         help="To train the model")
     parser.add_argument('--test',
-                        default=False, action=argparse.BooleanOptionalAction,
-                        help="To test the model")
+                        default=True, action=argparse.BooleanOptionalAction,
+                        help="To test the model using the best or last checkpoint, determined by load_best param")
+    parser.add_argument('--testduo',
+                        default=True, action=argparse.BooleanOptionalAction,
+                        help="To test the model using both best and last checkpoints. test param must be True for this to be used.")
     parser.add_argument("--n_prob_test",
                         type=int,
                         default=10,
@@ -94,7 +97,7 @@ if __name__ == '__main__':
                         default="",
                         help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
     parser.add_argument('--load_best',
-                        default=True, action=argparse.BooleanOptionalAction,
+                        default=False, action=argparse.BooleanOptionalAction,
                         help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
     parser.add_argument('--deform',
                         default=False, action=argparse.BooleanOptionalAction,
@@ -210,13 +213,20 @@ if __name__ == '__main__':
         torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.test:
-        # if args.load_best:
-        #     pipeline.load(load_best=True)
-        if pipeline.ProbFlag in [1, 2]:
-            pipeline.test_prob(test_logger=test_logger)
+        pipeline.load(load_best=args.load_best)
+        if args.model in [4, 5, 6, 7, 8]:
+            pipeline.test_prob(test_logger=test_logger, tag=("best" if args.load_best else "last"))
         else:
-            pipeline.test(test_logger=test_logger)
+            pipeline.test(test_logger=test_logger, tag=("best" if args.load_best else "last"))
         torch.cuda.empty_cache()  # to avoid memory errors
+
+        if args.testduo:
+            pipeline.load(load_best=not args.load_best)
+            if args.model in [4, 5, 6, 7, 8]:
+                pipeline.test_prob(test_logger=test_logger, tag=("best" if not args.load_best else "last"))
+            else:
+                pipeline.test(test_logger=test_logger, tag=("best" if not args.load_best else "last"))
+            torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.predict:
         pipeline.predict(args.predictor_path, args.predictor_label_path, predict_logger=test_logger)
