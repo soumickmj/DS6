@@ -13,7 +13,9 @@ from Models.prob_unet.probabilistic_unet import ProbabilisticUnet
 from Models.prob_unet2D.probabilistic_unet import ProbabilisticUnet as ProbabilisticUnet2D
 from Models.unet3d import U_Net, U_Net_DeepSup
 from Models.unet2d import U_Net as U_Net2D, U_Net_DeepSup as U_Net_DeepSup2D
-
+from Models.SSN.models import StochasticDeepMedic
+from Models.dounet2d import UNet as DOUNet2D
+from Models.dounet3d import UNet as DOUNet3D
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -44,7 +46,9 @@ def getModel(model_no, is2D=False): #Send model params from outside
                                             prior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2}, 
                                             posterior_op=InjectionConvEncoder2D,
                                             posterior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2},
-                                            ) 
+                                            ), 
+            6: StochasticDeepMedic(input_channels=1, num_classes=1),
+            8: DOUNet2D()
         }
     else:
         model_list = {
@@ -57,7 +61,8 @@ def getModel(model_no, is2D=False): #Send model params from outside
                                             task_kwargs={"output_activation_op": nn.Sigmoid, "activation_kwargs": {"inplace": True}}, 
                                             prior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2}, 
                                             posterior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2},
-                                            ) 
+                                            ) ,
+            8: DOUNet3D()
         }
     model = model_list.get(model_no, defaultModel)
     

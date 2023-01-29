@@ -48,9 +48,10 @@ if __name__ == '__main__':
                              "2{U-Net_Deepsup}; \n"
                              "3{Attention-U-Net}; \n"
                              "4{Probabilistic-U-Net};\n"
-                             "5{V2-Probabilistic-U-Net};"n"
-                             "6{S-S-N};"n"
-                             "7{VI-UNet};")
+                             "5{V2-Probabilistic-U-Net};\n"
+                             "6{S-S-N};\n"
+                             "7{VI-UNet};\n"
+                             "8{DO-UNet};")
     parser.add_argument("--model_name",
                         default="prova_2DMSSeg",
                         help="Name of the model")

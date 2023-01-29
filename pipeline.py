@@ -31,6 +31,7 @@ from Evaluation.evaluate import (IOU, Dice, FocalTverskyLoss, getLosses,
 from Models.ProbUNetV2.eval import calc_energy_distances, get_energy_distance_components
 from Utils.elastic_transform import RandomElasticDeformation, warp_image
 from Utils.fid.fidloss import FastFID
+from Models.SSN.trainer.losses import StochasticSegmentationNetworkLossMCIntegral
 from Utils.result_analyser import *
 from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 create_mask, load_model, load_model_with_amp,
@@ -64,6 +65,7 @@ class Pipeline:
         self.plauslabels = cmd_args.plauslabels
         self.plauslabel_mode = cmd_args.plauslabel_mode
         self.model_name = cmd_args.model_name
+        self.modelID = cmd_args.model
 
         self.load_best = cmd_args.load_best
         self.clip_grads = cmd_args.clip_grads
@@ -95,6 +97,8 @@ class Pipeline:
         self.dice = Dice()
         self.focalTverskyLoss = FocalTverskyLoss()
         self.iou = IOU()
+        if self.modelID == 6: #SSN
+            self.ssnloss = StochasticSegmentationNetworkLossMCIntegral(num_mc_samples=self.n_prob_test)
 
         self.LOWEST_LOSS = float('inf')
         self.test_set = test_set
@@ -271,14 +275,18 @@ class Pipeline:
                     # -------------------------------------------------------------------------------------------------
                     # First Branch Supervised error
                     if self.ProbFlag == 0:
-                        for output in self.model(local_batch): 
-                            if level == 0:
-                                output1 = output
-                            if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
-                            output = torch.sigmoid(output)
-                            floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
-                            level += 1
+                        if self.modelID == 6: #SSN
+                            logits, state = self.model(local_batch)
+                            floss = self.ssnloss(logits, state['distribution'], local_labels)
+                        else:
+                            for output in self.model(local_batch): 
+                                if level == 0:
+                                    output1 = output
+                                if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                    output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
+                                output = torch.sigmoid(output)
+                                floss += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
+                                level += 1
                     elif self.ProbFlag == 1:
                         self.model.forward(local_batch, local_labels, training=True)
                         elbo = self.model.elbo(local_labels, analytic_kl=True)
@@ -469,15 +477,22 @@ class Pipeline:
 
                         # Forward propagation
                         if self.ProbFlag == 0:
-                            for output in self.model(local_batch):
-                                if level == 0:
-                                    output1 = output
-                                if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
-                                    output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
+                            if self.modelID == 6: #SSN
+                                logits, state = self.model(local_batch)
+                                floss_iter = self.ssnloss(logits, state['distribution'], local_labels)
+                                # prob = torch.nn.functional.softmax(logits, dim=1)
+                                # _, output = torch.max(logits, dim=1)
+                                output = logits
+                            else:
+                                for output in self.model(local_batch):
+                                    if level == 0:
+                                        output1 = output
+                                    if level > 0:  # then the output size is reduced, and hence interpolate to patch_size
+                                        output = torch.nn.functional.interpolate(input=output, size=self.patch_size[:2] if self.dimMode == 2 else self.patch_size)
 
-                                output = torch.sigmoid(output)
-                                floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
-                                level += 1
+                                    output = torch.sigmoid(output)
+                                    floss_iter += loss_ratios[level] * self.focalTverskyLoss(output, local_labels)
+                                    level += 1
                         elif self.ProbFlag == 1:
                             self.model.forward(local_batch, training=False)
                             output1 = self.model.sample(testing=True)
@@ -645,7 +660,9 @@ class Pipeline:
         df.to_csv(os.path.join(result_root, "Results_Main.csv"))
 
     def test_prob(self, test_logger, save_results=True, test_subjects=None): #for testing Probabilistic UNets
-        test_logger.debug('Testing...')
+        test_logger.debug('Probabilistic Testing...')
+        if self.ProbFlag == 0:
+            test_logger.debug("Warning: The probabilistic flag is set to 0, but currently using the probabilistic testing function. This test function is mainly for testing Probabilistic UNets. test() function is meant for the other models. However, if it is desired to sample N-sampled from those models using MC-Dropout, then using this function is acqurate...")
 
         if test_subjects is None:
             test_folder_path = self.DATASET_FOLDER + '/test/'
@@ -720,8 +737,19 @@ class Pipeline:
                         # local_labels = local_labels.squeeze(-1)
 
                     with autocast(enabled=self.with_apex):
-                        if self.ProbFlag == 0:
-                           sys.exit("This test function is only for testing Probabilistic UNets. Please use the test() function for the rest of the models.")
+                        if self.ProbFlag == 0:          
+                            outputs = []
+                            for nP in range(self.n_prob_test):              
+                                if self.modelID == 6: #SSN
+                                    logits, _ = self.model(local_batch)
+                                    # prob = torch.nn.functional.softmax(logits, dim=1)
+                                    # _, output = torch.max(logits, dim=1)
+                                    outputs.append(logits.detach().cpu())
+                                else:
+                                    output = self.model(local_batch)
+                                    if type(output) is tuple or type(output) is list:
+                                        output = output[0]
+                                    outputs.append(torch.sigmoid(output).detach().cpu())
                         elif self.ProbFlag == 1:
                             sys.exit("Testing function for ProbFlag 1 (ProbUNetV1) is not ready!")
                             self.model.forward(local_batch, training=False)
