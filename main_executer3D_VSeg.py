@@ -48,7 +48,7 @@ if __name__ == '__main__':
                              "4{Probabilistic-U-Net};\n"
                              "5{V2-Probabilistic-U-Net};\n"
                              "6{S-S-N};\n"
-                             "7{VI-UNet};\n"
+                             "7{VI-MH};\n"
                              "8{DO-UNet};")
     parser.add_argument("--model_name",
                         default="prova_3DVSeg",
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
     # Model
-    model = getModel(args.model, is2D=bool(args.slice2D_shape))
+    model = getModel(args.model, is2D=bool(args.slice2D_shape), n_prob_test=args.n_prob_test)
     model.cuda()
     print("It's a 2D model!!" if bool(args.slice2D_shape) else "It's a 3D model!!")
 

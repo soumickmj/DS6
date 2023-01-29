@@ -4,6 +4,7 @@
 Purpose : model selector
 
 '''
+import sys
 from ssl import SSLSocket
 import torch.nn as nn
 from Models.ProbUNetV2.model import InjectionConvEncoder2D, InjectionUNet2D, ProbabilisticSegmentationNet
@@ -14,6 +15,7 @@ from Models.prob_unet2D.probabilistic_unet import ProbabilisticUnet as Probabili
 from Models.unet3d import U_Net, U_Net_DeepSup
 from Models.unet2d import U_Net as U_Net2D, U_Net_DeepSup as U_Net_DeepSup2D
 from Models.SSN.models import StochasticDeepMedic
+from Models.VIMH.unet_Ensemble import UNet_Ensemble as VIMH
 from Models.dounet2d import UNet as DOUNet2D
 from Models.dounet3d import UNet as DOUNet3D
 
@@ -31,9 +33,13 @@ MODEL_UNET_DEEPSUP = 2
 MODEL_ATTENTION_UNET = 3
 MODEL_PROBABILISTIC_UNET = 4
 
-def getModel(model_no, is2D=False): #Send model params from outside
+def getModel(model_no, is2D=False, n_prob_test=0): #Send model params from outside
     defaultModel = U_Net() #Default
     if is2D:
+        if model_no not in [1, 2, 3, 4, 5, 6, 7, 8]:
+            sys.exit(f"Invalid model ID {model_no} for 2D operations.")
+        if model_no in [4]:
+            print(f"Warning: Even though {model_no} has been implemented for 2D operations, it has bugs. Use with caution!")
         model_list = {
             1: U_Net2D(),
             2: U_Net_DeepSup2D(), 
@@ -48,9 +54,14 @@ def getModel(model_no, is2D=False): #Send model params from outside
                                             posterior_kwargs={"activation_kwargs": {"inplace": True}, "norm_depth": 2},
                                             ), 
             6: StochasticDeepMedic(input_channels=1, num_classes=1),
+            7: VIMH(num_models=n_prob_test, mutliHead_layer="BDec2", num_in=1, num_classes=1),
             8: DOUNet2D()
         }
     else:
+        if model_no not in [1, 2, 3, 4, 5, 8]:
+            sys.exit(f"Invalid model ID {model_no} for 3D operations.")
+        if model_no in [4]:
+            print(f"Warning: Even though {model_no} has been implemented for 3D operations, it has bugs. Use with caution!")
         model_list = {
             1: U_Net(),
             2: U_Net_DeepSup(), 

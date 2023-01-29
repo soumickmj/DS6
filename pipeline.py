@@ -32,6 +32,7 @@ from Models.ProbUNetV2.eval import calc_energy_distances, get_energy_distance_co
 from Utils.elastic_transform import RandomElasticDeformation, warp_image
 from Utils.fid.fidloss import FastFID
 from Models.SSN.trainer.losses import StochasticSegmentationNetworkLossMCIntegral
+from Models.VIMH.loss import VIMHLoss
 from Utils.result_analyser import *
 from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 create_mask, load_model, load_model_with_amp,
@@ -99,6 +100,8 @@ class Pipeline:
         self.iou = IOU()
         if self.modelID == 6: #SSN
             self.ssnloss = StochasticSegmentationNetworkLossMCIntegral(num_mc_samples=self.n_prob_test)
+        elif self.modelID == 7: #VIMH
+            self.vimhloss = VIMHLoss(loss_func=nn.NLLLoss(), NUM_MODELS=self.model.num_models)
 
         self.LOWEST_LOSS = float('inf')
         self.test_set = test_set
@@ -278,6 +281,9 @@ class Pipeline:
                         if self.modelID == 6: #SSN
                             logits, state = self.model(local_batch)
                             floss = self.ssnloss(logits, state['distribution'], local_labels)
+                        elif self.modelID == 7: #VIMH
+                            soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test, num_classes=1)
+                            floss, output = self.vimhloss(soft_out, kl, local_labels, train=True)
                         else:
                             for output in self.model(local_batch): 
                                 if level == 0:
@@ -483,6 +489,9 @@ class Pipeline:
                                 # prob = torch.nn.functional.softmax(logits, dim=1)
                                 # _, output = torch.max(logits, dim=1)
                                 output = logits
+                            elif self.modelID == 7: #VIMH
+                                soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test, num_classes=1)
+                                floss_iter, output = self.vimhloss(soft_out, kl, local_labels, train=False)
                             else:
                                 for output in self.model(local_batch):
                                     if level == 0:
@@ -745,6 +754,10 @@ class Pipeline:
                                     # prob = torch.nn.functional.softmax(logits, dim=1)
                                     # _, output = torch.max(logits, dim=1)
                                     outputs.append(logits.detach().cpu())
+                                elif self.modelID == 7: #VIMH
+                                    soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test, num_classes=1)
+                                    _, output = self.vimhloss(soft_out, kl, None, train=False)
+                                    outputs.append(output.detach().cpu())
                                 else:
                                     output = self.model(local_batch)
                                     if type(output) is tuple or type(output) is list:
