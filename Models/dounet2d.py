@@ -70,7 +70,7 @@ class UNet(nn.Module):
             if i < len(self.up_path) - 1 and self.do < 1:
                 x = F.dropout2d(x, p=self.do, training=True)
 
-        return self.last(x)
+        return [self.last(x)]
 
 
 class UNetConvBlock(nn.Module):
