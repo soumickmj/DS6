@@ -1,0 +1,4 @@
+{
+    "dataset_path": "/scratch/franzsch/FranziVSeg/Data/MSSEG_Organised/FLAIR_Fold0",
+    "output_path": "/scratch/franzsch/FranziVSeg/Output/MSSeg_FLAIR_Fold0"
+}
