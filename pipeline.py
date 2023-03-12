@@ -152,7 +152,7 @@ class Pipeline:
             validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False, plauslabels_path=self.DATASET_FOLDER + '/validate_plausiblelabel/' if cmd_args.plauslabels else "")
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=self.num_worker) 
+                                                            num_workers=0) 
             self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=False,
                                                                 num_workers=self.num_worker)
     
