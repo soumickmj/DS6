@@ -11,7 +11,9 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["--datajson_path", "VSeg_local", "--model", "6"]
+            // "args": ["--datajson_path", "VSeg_local", "--model", "6"]
+            "args": ["--batch_size", "8", "--model", "6", "--num_worker", "0"]
+
         }
     ]
 }

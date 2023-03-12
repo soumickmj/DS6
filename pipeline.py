@@ -99,7 +99,7 @@ class Pipeline:
         self.focalTverskyLoss = FocalTverskyLoss()
         self.iou = IOU()
         if self.modelID == 6: #SSN
-            self.ssnloss = StochasticSegmentationNetworkLossMCIntegral(num_mc_samples=self.n_prob_test)
+            self.ssnloss = StochasticSegmentationNetworkLossMCIntegral(num_mc_samples=self.n_prob_test if self.n_prob_test% 2 == 0 else self.n_prob_test-1)
         elif self.modelID == 7: #VIMH
             self.vimhloss = VIMHLoss(loss_func=nn.NLLLoss(), NUM_MODELS=self.model.num_models)
 
