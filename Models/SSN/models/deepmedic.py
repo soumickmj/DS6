@@ -75,5 +75,8 @@ class DeepMedic(BiomedicalBlock):
             activations.append(out)
 
         out = torch.cat(tuple(activations), dim=1)
+
+        out = nn.functional.interpolate(out, size=input_size, mode="bilinear" if len(input_size)==2 else "trilinear") #Soumick: added to deal with decreased in-plane shape problem
+        
         out = self.fully_connected(out)
         return out, {}

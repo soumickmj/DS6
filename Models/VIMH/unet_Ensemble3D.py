@@ -3,19 +3,19 @@ import torch.nn.functional as F
 from torch import nn
 
 try:
-    from .layers.bayes_Layers import BayesConv_local_reparam
+    from .layers.bayes_Layers3D import BayesConv_local_reparam
 except:
-    from Models.VIMH.layers.bayes_Layers import BayesConv_local_reparam
+    from Models.VIMH.layers.bayes_Layers3D import BayesConv_local_reparam
 
 
 def initialize_weights(*models):
     for model in models:
         for module in model.modules():
-            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear):
+            if isinstance(module, nn.Conv3d) or isinstance(module, nn.Linear):
                 nn.init.kaiming_normal_(module.weight)
                 if module.bias is not None:
                     module.bias.data.zero_()
-            elif isinstance(module, nn.BatchNorm2d):
+            elif isinstance(module, nn.BatchNorm3d):
                 module.weight.data.fill_(1)
                 module.bias.data.zero_()
 
@@ -25,18 +25,18 @@ class _EncoderBlockB(nn.Module):
     def __init__(self, in_channels, out_channels, prior, dropout=False):
         super(_EncoderBlockB, self).__init__()
         layers1 = [
-            nn.BatchNorm2d(out_channels),
+            nn.BatchNorm3d(out_channels),
             nn.ReLU(inplace=True)]
 
         self.c1 = BayesConv_local_reparam(in_channels, out_channels, kernel_size=3, prior_sig=prior)
         self.c2 = BayesConv_local_reparam(out_channels, out_channels, kernel_size=3, prior_sig=prior)
         layers2 = [
-            nn.BatchNorm2d(out_channels),
+            nn.BatchNorm3d(out_channels),
             nn.ReLU(inplace=True),
         ]
         if dropout:
             layers2.append(nn.Dropout())
-        layers2.append(nn.MaxPool2d(kernel_size=2, stride=2))
+        layers2.append(nn.MaxPool3d(kernel_size=2, stride=2))
         self.encode1 = nn.Sequential(*layers1)
         self.encode2 = nn.Sequential(*layers2)
 
@@ -55,18 +55,18 @@ class _EncoderBlock(nn.Module):
     def __init__(self, in_channels, out_channels, dropout=False):
         super(_EncoderBlock, self).__init__()
         layers1 = [
-            nn.BatchNorm2d(out_channels),
+            nn.BatchNorm3d(out_channels),
             nn.ReLU(inplace=True)]
 
-        self.c1 = nn.Conv2d(in_channels, out_channels, kernel_size=3)
-        self.c2 = nn.Conv2d(out_channels, out_channels, kernel_size=3)
+        self.c1 = nn.Conv3d(in_channels, out_channels, kernel_size=3)
+        self.c2 = nn.Conv3d(out_channels, out_channels, kernel_size=3)
         layers2 = [
-            nn.BatchNorm2d(out_channels),
+            nn.BatchNorm3d(out_channels),
             nn.ReLU(inplace=True),
         ]
         if dropout:
             layers2.append(nn.Dropout())
-        layers2.append(nn.MaxPool2d(kernel_size=2, stride=2))
+        layers2.append(nn.MaxPool3d(kernel_size=2, stride=2))
         self.encode1 = nn.Sequential(*layers1)
         self.encode2 = nn.Sequential(*layers2)
 
@@ -83,13 +83,13 @@ class _DecoderBlockB(nn.Module):
         super(_DecoderBlockB, self).__init__()
         self.c1 = BayesConv_local_reparam(in_channels, middle_channels, kernel_size=3, prior_sig=prior)
         self.decode = nn.Sequential(
-            nn.BatchNorm2d(middle_channels),
+            nn.BatchNorm3d(middle_channels),
             nn.ReLU(inplace=True))
         self.c2 = BayesConv_local_reparam(middle_channels, middle_channels, kernel_size=3, prior_sig=prior)
         self.decode2 = nn.Sequential(
-            nn.BatchNorm2d(middle_channels),
+            nn.BatchNorm3d(middle_channels),
             nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=2, stride=2),
+            nn.ConvTranspose3d(middle_channels, out_channels, kernel_size=2, stride=2),
         )
 
     def forward(self, x, sample, returnKL=True):
@@ -107,15 +107,15 @@ class _DecoderBlockB(nn.Module):
 class _DecoderBlock(nn.Module):
     def __init__(self, in_channels, middle_channels, out_channels):
         super(_DecoderBlock, self).__init__()
-        self.c1 = nn.Conv2d(in_channels, middle_channels, kernel_size=3)
+        self.c1 = nn.Conv3d(in_channels, middle_channels, kernel_size=3)
         self.decode = nn.Sequential(
-            nn.BatchNorm2d(middle_channels),
+            nn.BatchNorm3d(middle_channels),
             nn.ReLU(inplace=True))
-        self.c2 = nn.Conv2d(middle_channels, middle_channels, kernel_size=3)
+        self.c2 = nn.Conv3d(middle_channels, middle_channels, kernel_size=3)
         self.decode2 = nn.Sequential(
-            nn.BatchNorm2d(middle_channels),
+            nn.BatchNorm3d(middle_channels),
             nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=2, stride=2),
+            nn.ConvTranspose3d(middle_channels, out_channels, kernel_size=2, stride=2),
         )
 
     def forward(self, x):
@@ -128,17 +128,17 @@ class _DecoderBlock(nn.Module):
 class _DecoderBlockD(nn.Module):
     def __init__(self, in_channels, middle_channels, out_channels, dropout=0.0):
         super(_DecoderBlockD, self).__init__()
-        self.c1 = nn.Sequential(nn.Conv2d(in_channels, middle_channels, kernel_size=3))
+        self.c1 = nn.Sequential(nn.Conv3d(in_channels, middle_channels, kernel_size=3))
         self.decode = nn.Sequential(
             nn.Dropout(p=dropout),
-            nn.BatchNorm2d(middle_channels),
+            nn.BatchNorm3d(middle_channels),
             nn.ReLU(inplace=True))
-        self.c2 = nn.Sequential(nn.Conv2d(middle_channels, middle_channels, kernel_size=3))
+        self.c2 = nn.Sequential(nn.Conv3d(middle_channels, middle_channels, kernel_size=3))
         self.decode2 = nn.Sequential(
             nn.Dropout(p=dropout),
-            nn.BatchNorm2d(middle_channels),
+            nn.BatchNorm3d(middle_channels),
             nn.ReLU(inplace=True),
-            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=2, stride=2),
+            nn.ConvTranspose3d(middle_channels, out_channels, kernel_size=2, stride=2),
         )
 
     def forward(self, x):
@@ -161,15 +161,15 @@ class BUNet(nn.Module):
 
         self.d1 = BayesConv_local_reparam(128 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
         self.d2 = BayesConv_local_reparam(64 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
         self.final = BayesConv_local_reparam(64 // n, num_classes, kernel_size=1, prior_sig=prior)
-        self.finalB = nn.BatchNorm2d(num_classes)
+        self.finalB = nn.BatchNorm3d(num_classes)
 
         initialize_weights(self)
 
@@ -183,12 +183,12 @@ class BUNet(nn.Module):
         sum_kl += kl
         center, kl = self.center(enc3, sample, returnKL)
         sum_kl += kl
-        dec3, kl = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1), sample,
+        dec3, kl = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1), sample,
                              returnKL)
         sum_kl += kl
-        dec2, kl = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec2, kl = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
-        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
         dec1 = self.dec1(dec1)
         dec1, kl = self.d2(dec1, sample, returnKL)
@@ -197,10 +197,10 @@ class BUNet(nn.Module):
         final, kl = self.final(dec1, sample, returnKL)
         sum_kl += kl
         final = self.finalB(final)
-        return F.upsample(final, x.size()[2:], mode='bilinear'), sum_kl
+        return F.upsample(final, x.size()[2:], mode='trilinear'), sum_kl
 
     def sample_forward(self, x, num_samples, num_classes):
-        softmax_result = torch.zeros([x.size(0), num_classes, x.size(2), x.size(3)], device=x.device,
+        softmax_result = torch.zeros([x.size(0), num_classes, x.size(2), x.size(3), x_size[4]], device=x.device,
                                      dtype=torch.float32)
         cum_kl = 0.
         for i in range(num_samples):
@@ -223,18 +223,18 @@ class UNet(nn.Module):
         self.center = _DecoderBlock(256 // n, 512 // n, 256 // n)
         self.dec3 = _DecoderBlock(512 // n, 256 // n, 128 // n)
         self.dec2 = _DecoderBlock(256 // n, 128 // n, 64 // n)
-        self.d1 = nn.Conv2d(128 // n, 64 // n, kernel_size=3)
+        self.d1 = nn.Conv3d(128 // n, 64 // n, kernel_size=3)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
-        self.d2 = nn.Conv2d(64 // n, 64 // n, kernel_size=3)
+        self.d2 = nn.Conv3d(64 // n, 64 // n, kernel_size=3)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
-        self.final = nn.Conv2d(64 // n, num_classes, kernel_size=1)
-        self.finalB = nn.BatchNorm2d(num_classes)
-        self.softm = nn.Softmax2d()
+        self.final = nn.Conv3d(64 // n, num_classes, kernel_size=1)
+        self.finalB = nn.BatchNorm3d(num_classes)
+        self.softm = nn.Softmax(dim=1)
         initialize_weights(self)
 
     def forward(self, x):
@@ -242,15 +242,15 @@ class UNet(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         center = self.center(enc3)
-        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1))
-        dec1 = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1))
+        dec1 = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1))
         dec1 = self.dec1(dec1)
         dec1 = self.d2(dec1)
         dec1 = self.dec12(dec1)
         final = self.final(dec1)
         final = self.finalB(final)
-        final = F.upsample(final, x.size()[2:], mode='bilinear')
+        final = F.upsample(final, x.size()[2:], mode='trilinear')
         return F.softmax(final, dim=1)
 
 
@@ -288,7 +288,7 @@ class UNet_Dec3_base(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         center = self.center(enc3)
-        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1))
         return dec3, enc2, enc1
 
 
@@ -308,7 +308,7 @@ class UNet_Dec3_base_d(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         center = self.center(enc3)
-        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1))
         return dec3, enc2, enc1
 
 
@@ -329,8 +329,8 @@ class UNet_Dec2_base(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         center = self.center(enc3)
-        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1))
         return dec2, enc1
 
 
@@ -351,8 +351,8 @@ class UNet_Dec2_base_D(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         center = self.center(enc3)
-        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1))
         return dec2, enc1
 
 
@@ -376,9 +376,9 @@ class UNetBIG_Dec2_base(nn.Module):
         enc3 = self.enc3(enc2)
         enc4 = self.enc4(enc3)
         center = self.center(enc4)
-        dec4 = self.dec4(torch.cat([center, F.upsample(enc4, center.size()[2:], mode='bilinear')], 1))
-        dec3 = self.dec3(torch.cat([dec4, F.upsample(enc3, dec4.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1))
+        dec4 = self.dec4(torch.cat([center, F.upsample(enc4, center.size()[2:], mode='trilinear')], 1))
+        dec3 = self.dec3(torch.cat([dec4, F.upsample(enc3, dec4.size()[2:], mode='trilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1))
         return dec2, enc1
 
 
@@ -392,13 +392,13 @@ class UNet_Dec1_base(nn.Module):
         self.center = _DecoderBlock(256 // n, 512 // n, 256 // n)
         self.dec3 = _DecoderBlock(512 // n, 256 // n, 128 // n)
         self.dec2 = _DecoderBlock(256 // n, 128 // n, 64 // n)
-        self.d1 = nn.Conv2d(128 // n, 64 // n, kernel_size=3)
+        self.d1 = nn.Conv3d(128 // n, 64 // n, kernel_size=3)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
-        self.d2 = nn.Conv2d(64 // n, 64 // n, kernel_size=3)
+        self.d2 = nn.Conv3d(64 // n, 64 // n, kernel_size=3)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
         initialize_weights(self)
@@ -408,9 +408,9 @@ class UNet_Dec1_base(nn.Module):
         enc2 = self.enc2(enc1)
         enc3 = self.enc3(enc2)
         center = self.center(enc3)
-        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1))
-        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1))
-        dec1 = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1))
+        dec3 = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1))
+        dec2 = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1))
+        dec1 = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1))
         dec1 = self.dec1(dec1)
         dec1 = self.d2(dec1)
         dec1 = self.dec12(dec1)
@@ -425,25 +425,25 @@ class BUNet_Enc_head(nn.Module):
         self.dec2 = _DecoderBlockB(256 // n, 128 // n, 64 // n, prior=prior)
         self.d1 = BayesConv_local_reparam(128 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
         self.d2 = BayesConv_local_reparam(64 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
         self.final = BayesConv_local_reparam(64 // n, num_classes, kernel_size=1, prior_sig=prior)
-        self.finalB = nn.BatchNorm2d(num_classes)
+        self.finalB = nn.BatchNorm3d(num_classes)
         initialize_weights(self)
 
     def forward(self, x_size, center, enc3, enc2, enc1, sample=True, returnKL=True):
         sum_kl = 0
-        dec3, kl = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='bilinear')], 1), sample,
+        dec3, kl = self.dec3(torch.cat([center, F.upsample(enc3, center.size()[2:], mode='trilinear')], 1), sample,
                              returnKL)
         sum_kl += kl
-        dec2, kl = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec2, kl = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
-        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
         dec1 = self.dec1(dec1)
         dec1, kl = self.d2(dec1, sample, returnKL)
@@ -452,10 +452,10 @@ class BUNet_Enc_head(nn.Module):
         final, kl = self.final(dec1, sample, returnKL)
         sum_kl += kl
         final = self.finalB(final)
-        return F.upsample(final, x_size[2:], mode='bilinear'), sum_kl
+        return F.upsample(final, x_size[2:], mode='trilinear'), sum_kl
 
     def sample_forward(self, x_size, center, enc3, enc2, enc1, num_samples, num_classes):
-        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3]], device=center.device,
+        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3], x_size[4]], device=center.device,
                                      dtype=torch.float32)
         cum_kl = 0.
         for i in range(num_samples):
@@ -472,22 +472,22 @@ class BUNet_Dec3_head(nn.Module):
         self.dec2 = _DecoderBlockB(256 // n, 128 // n, 64 // n, prior=prior)
         self.d1 = BayesConv_local_reparam(128 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
         self.d2 = BayesConv_local_reparam(64 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
         self.final = BayesConv_local_reparam(64 // n, num_classes, kernel_size=1, prior_sig=prior)
-        self.finalB = nn.BatchNorm2d(num_classes)
+        self.finalB = nn.BatchNorm3d(num_classes)
         initialize_weights(self)
 
     def forward(self, x_size, dec3, enc2, enc1, sample=True, returnKL=True):
         sum_kl = 0
-        dec2, kl = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec2, kl = self.dec2(torch.cat([dec3, F.upsample(enc2, dec3.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
-        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
         dec1 = self.dec1(dec1)
         dec1, kl = self.d2(dec1, sample, returnKL)
@@ -496,10 +496,10 @@ class BUNet_Dec3_head(nn.Module):
         final, kl = self.final(dec1, sample, returnKL)
         sum_kl += kl
         final = self.finalB(final)
-        return F.upsample(final, x_size[2:], mode='bilinear'), sum_kl
+        return F.upsample(final, x_size[2:], mode='trilinear'), sum_kl
 
     def sample_forward(self, x_size, dec3, enc2, enc1, num_samples, num_classes):
-        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3]], device=dec3.device,
+        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3], x_size[4]], device=dec3.device,
                                      dtype=torch.float32)
         cum_kl = 0.
         for i in range(num_samples):
@@ -515,20 +515,20 @@ class BUNet_Dec2_head(nn.Module):
         n = 2
         self.d1 = BayesConv_local_reparam(128 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
         self.d2 = BayesConv_local_reparam(64 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
         self.final = BayesConv_local_reparam(64 // n, num_classes, kernel_size=1, prior_sig=prior)
-        self.finalB = nn.BatchNorm2d(num_classes)
+        self.finalB = nn.BatchNorm3d(num_classes)
         initialize_weights(self)
 
     def forward(self, x_size, dec2, enc1, sample=True, returnKL=True):
         sum_kl = 0
-        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
         dec1 = self.dec1(dec1)
         dec1, kl = self.d2(dec1, sample, returnKL)
@@ -537,10 +537,10 @@ class BUNet_Dec2_head(nn.Module):
         final, kl = self.final(dec1, sample, returnKL)
         sum_kl += kl
         final = self.finalB(final)
-        return F.upsample(final, x_size[2:], mode='bilinear'), sum_kl
+        return F.upsample(final, x_size[2:], mode='trilinear'), sum_kl
 
     def sample_forward(self, x_size, dec2, enc1, num_samples, num_classes):
-        softmax_result = torch.zeros([num_samples, x_size[0], num_classes, x_size[2], x_size[3]], device=dec2.device,
+        softmax_result = torch.zeros([num_samples, x_size[0], num_classes, x_size[2], x_size[3], x_size[4]], device=dec2.device,
                                      dtype=torch.float32)
         cum_kl = 0.
         for i in range(num_samples):
@@ -556,20 +556,20 @@ class BUNetBIG_Dec2_head(nn.Module):
         n = 1
         self.d1 = BayesConv_local_reparam(128 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
         self.d2 = BayesConv_local_reparam(64 // n, 64 // n, kernel_size=3, prior_sig=prior)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
         self.final = BayesConv_local_reparam(64 // n, num_classes, kernel_size=1, prior_sig=prior)
-        self.finalB = nn.BatchNorm2d(num_classes)
+        self.finalB = nn.BatchNorm3d(num_classes)
         initialize_weights(self)
 
     def forward(self, x_size, dec2, enc1, sample=True, returnKL=True):
         sum_kl = 0
-        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1), sample, returnKL)
+        dec1, kl = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1), sample, returnKL)
         sum_kl += kl
         dec1 = self.dec1(dec1)
         dec1, kl = self.d2(dec1, sample, returnKL)
@@ -578,10 +578,10 @@ class BUNetBIG_Dec2_head(nn.Module):
         final, kl = self.final(dec1, sample, returnKL)
         sum_kl += kl
         final = self.finalB(final)
-        return F.upsample(final, x_size[2:], mode='bilinear'), sum_kl
+        return F.upsample(final, x_size[2:], mode='trilinear'), sum_kl
 
     def sample_forward(self, x_size, dec2, enc1, num_samples, num_classes):
-        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3]], device=dec2.device,
+        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3], x_size[4]], device=dec2.device,
                                      dtype=torch.float32)
         cum_kl = 0.
         for i in range(num_samples):
@@ -596,7 +596,7 @@ class BUNet_Dec1_head(nn.Module):
         super().__init__()
         n = 2
         self.final = BayesConv_local_reparam(64 // n, num_classes, kernel_size=1, prior_sig=prior)
-        self.finalB = nn.BatchNorm2d(num_classes)
+        self.finalB = nn.BatchNorm3d(num_classes)
         initialize_weights(self)
 
     def forward(self, x_size, dec1, sample=True, returnKL=True):
@@ -604,10 +604,10 @@ class BUNet_Dec1_head(nn.Module):
         final, kl = self.final(dec1, sample, returnKL)
         sum_kl += kl
         final = self.finalB(final)
-        return F.upsample(final, x_size[2:], mode='bilinear'), sum_kl
+        return F.upsample(final, x_size[2:], mode='trilinear'), sum_kl
 
     def sample_forward(self, x_size, dec1, num_samples, num_classes):
-        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3]], device=dec1.device,
+        softmax_result = torch.zeros([x_size[0], num_classes, x_size[2], x_size[3], x_size[4]], device=dec1.device,
                                      dtype=torch.float32)
         cum_kl = 0.
         for i in range(num_samples):
@@ -621,15 +621,15 @@ class UNet_Dec1_head(nn.Module):
     def __init__(self, num_classes, num_in=3):
         super(UNet_Dec1_head, self).__init__()
         n = 2
-        self.final = nn.Conv2d(64 // n, num_classes, kernel_size=1)
-        self.finalB = nn.BatchNorm2d(num_classes)
-        self.softm = nn.Softmax2d()
+        self.final = nn.Conv3d(64 // n, num_classes, kernel_size=1)
+        self.finalB = nn.BatchNorm3d(num_classes)
+        self.softm = nn.Softmax(dim=1)
         initialize_weights(self)
 
     def forward(self, x_size, dec1):
         final = self.final(dec1)
         final = self.finalB(final)
-        final = F.upsample(final, x_size[2:], mode='bilinear')
+        final = F.upsample(final, x_size[2:], mode='trilinear')
         return F.softmax(final, dim=1)
 
 
@@ -637,28 +637,28 @@ class UNet_Dec2_head(nn.Module):
     def __init__(self, num_classes, num_in=3):
         super(UNet_Dec2_head, self).__init__()
         n = 2
-        self.d1 = nn.Conv2d(128 // n, 64 // n, kernel_size=3)
+        self.d1 = nn.Conv3d(128 // n, 64 // n, kernel_size=3)
         self.dec1 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True))
-        self.d2 = nn.Conv2d(64 // n, 64 // n, kernel_size=3)
+        self.d2 = nn.Conv3d(64 // n, 64 // n, kernel_size=3)
         self.dec12 = nn.Sequential(
-            nn.BatchNorm2d(64 // n),
+            nn.BatchNorm3d(64 // n),
             nn.ReLU(inplace=True),
         )
-        self.final = nn.Conv2d(64 // n, num_classes, kernel_size=1)
-        self.finalB = nn.BatchNorm2d(num_classes)
-        self.softm = nn.Softmax2d()
+        self.final = nn.Conv3d(64 // n, num_classes, kernel_size=1)
+        self.finalB = nn.BatchNorm3d(num_classes)
+        self.softm = nn.Softmax(dim=1)
         initialize_weights(self)
 
     def forward(self, x_size, dec2, enc1):
-        dec1 = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='bilinear')], 1))
+        dec1 = self.d1(torch.cat([dec2, F.upsample(enc1, dec2.size()[2:], mode='trilinear')], 1))
         dec1 = self.dec1(dec1)
         dec1 = self.d2(dec1)
         dec1 = self.dec12(dec1)
         final = self.final(dec1)
         final = self.finalB(final)
-        final = F.upsample(final, x_size[2:], mode='bilinear')
+        final = F.upsample(final, x_size[2:], mode='trilinear')
         return F.softmax(final, dim=1)
 
 
@@ -779,7 +779,7 @@ class UNet_Ensemble(nn.Module):
         elif self.multiHead == "BIGBDec2":
             dec2, enc1 = self.base(x)
             sum_kl = torch.zeros(num_models, device="cuda:0")
-            outputs = torch.zeros(num_models, x_size[0], x_size[1], x_size[2], x_size[3], device="cuda:0")
+            outputs = torch.zeros(num_models, x_size[0], x_size[1], x_size[2], x_size[3], x_size[4], device="cuda:0")
             for i in range(self.num_models):
                 o, kl = self.nets[i].sample_forward(x_size, dec2, enc1, samples, num_classes)
                 sum_kl[i] += kl.to(sum_kl.device)

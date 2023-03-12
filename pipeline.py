@@ -152,7 +152,7 @@ class Pipeline:
             validationdataset = self.create_TIOSubDS(vol_path=self.DATASET_FOLDER + '/validate/', label_path=self.DATASET_FOLDER + '/validate_label/', crossvalidation_set=validation_set, is_train=False, plauslabels_path=self.DATASET_FOLDER + '/validate_plausiblelabel/' if cmd_args.plauslabels else "")
 
             self.train_loader = torch.utils.data.DataLoader(traindataset, batch_size=self.batch_size, shuffle=True,
-                                                            num_workers=0) 
+                                                            num_workers=self.num_worker) 
             self.validate_loader = torch.utils.data.DataLoader(validationdataset, batch_size=self.batch_size, shuffle=False,
                                                                 num_workers=self.num_worker)
     
@@ -285,7 +285,7 @@ class Pipeline:
                     if self.ProbFlag == 0:
                         if self.modelID == 6: #SSN
                             logits, state = self.model(local_batch)
-                            floss = self.ssnloss(logits, state['distribution'], local_labels)
+                            floss = self.ssnloss(logits, local_labels, state['distribution'])
                         elif self.modelID == 7: #VIMH
                             soft_out, _, kl = self.model(local_batch, samples=self.n_prob_test)
                             floss, output = self.vimhloss(soft_out, kl, local_labels, train=True)
@@ -499,7 +499,7 @@ class Pipeline:
                         if self.ProbFlag == 0:
                             if self.modelID == 6: #SSN
                                 logits, state = self.model(local_batch)
-                                floss_iter = self.ssnloss(logits, state['distribution'], local_labels)
+                                floss_iter = self.ssnloss(logits, local_labels, state['distribution'])
                                 # prob = torch.nn.functional.softmax(logits, dim=1)
                                 _, output1 = torch.max(logits, dim=1)
                             elif self.modelID == 7: #VIMH

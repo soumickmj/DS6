@@ -96,7 +96,7 @@ class UNet(nn.Module):
         super(UNet, self).__init__()
         n = 4
         self.up_mode = 'trilinear' if dim == 3 else 'bilinear'
-        self.pool = nn.MaxPool3d(kernel_size=2, stride=2) if dim == 3 else nn.MaxPool3d(kernel_size=2, stride=2)
+        self.pool = nn.MaxPool3d(kernel_size=2, stride=2) if dim == 3 else nn.MaxPool2d(kernel_size=2, stride=2)
         self.enc1 = _EncoderBlock(num_in, 64//n, dim=dim)
         self.enc2 = _EncoderBlock(64//n, 128//n, dim=dim)
         self.enc3 = _EncoderBlock(128//n, 256//n, dim=dim)
@@ -161,7 +161,7 @@ class StochasticUNet(UNet):
                  rank: int = 10,
                  epsilon=1e-5,
                  diagonal=False):
-        super().__init__(num_classes=input_channels, num_in=input_channels,dim=dimension)
+        super().__init__(num_classes=num_classes, num_in=input_channels,dim=dimension)
         self.dim = dimension
         conv_fn = nn.Conv3d if self.dim == 3 else nn.Conv2d
         self.rank = rank
