@@ -28,6 +28,7 @@ from Utils.vessel_utils import (convert_and_save_tif, create_diff_mask,
                                 save_model, write_summary, write_Epoch_summary)
 from Utils.datasets import SRDataset
 from Utils.model_manager import getModel
+from Utils.madam import Madam
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -51,7 +52,8 @@ class Pipeline:
         self.model_type = cmd_args.model
         self.lr_1 = cmd_args.learning_rate
         self.logger.info("learning rate " + str(self.lr_1))
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
+        # self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
+        self.optimizer = Madam(model.parameters(), lr=cmd_args.learning_rate)
         self.num_epochs = cmd_args.num_epochs
         self.k_folds = cmd_args.k_folds
         self.learning_rate = cmd_args.learning_rate
@@ -368,7 +370,11 @@ class Pipeline:
                             floss = floss + floss2 + floss_c
 
                         else:
-                            loss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
+                            # loss = (self.floss_coeff * floss) + (self.mip_loss_coeff * mip_loss)
+                            if batch_index % 2 == 0:
+                                loss = 0.9 * floss + 0.1 * mip_loss
+                            else:
+                                loss = 0.1 * floss + 0.9 * mip_loss
 
                     # except Exception as error:
                     #     self.logger.exception(error)
@@ -540,7 +546,8 @@ class Pipeline:
 
                 floss += floss_iter
                 mipLoss += mipLoss_iter
-                total_loss += (self.floss_coeff * floss_iter) + (self.mip_loss_coeff * mipLoss_iter)
+                # total_loss += (self.floss_coeff * floss_iter) + (self.mip_loss_coeff * mipLoss_iter)
+                total_loss += floss_iter + mipLoss_iter
                 dl, ds = self.dice(torch.sigmoid(output1), local_labels)
                 dloss += dl.detach().item()
 
