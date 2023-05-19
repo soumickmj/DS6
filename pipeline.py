@@ -216,7 +216,8 @@ class Pipeline:
         del self.model
         self.model = torch.nn.DataParallel(getModel(self.model_type, self.output_path + "/" + self.MODEL_NAME))
         self.model.cuda()
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = Madam(model.parameters(), lr=cmd_args.learning_rate)
         if self.with_apex:
             self.scaler = GradScaler()
         self.LOWEST_LOSS = float('inf')
