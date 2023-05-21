@@ -118,13 +118,13 @@ def convert_and_save_tif(image3D, output_path, filename='output.tif', isColored=
         image = transforms.ToPILImage(mode='RGB')(tensor_image)
         image_list.append(image)
 
-    print('convert_and_save_tif:size of image:'+ str(len(image_list)))
+    print(f'convert_and_save_tif:size of image:{len(image_list)}')
     with TiffImagePlugin.AppendingTiffWriter(output_path + filename, True) as tifWriter:
         for im in image_list:
             # with open(DATASET_FOLDER+tiff_in) as tiff_in:
             im.save(tifWriter)
             tifWriter.newFrame()
-    print("Conversion to tiff completed, image saved as {}".format(filename))
+    print(f"Conversion to tiff completed, image saved as {filename}")
 
 def convert_and_save_tif_greyscale(image3D, output_path, filename='output.tif'):
     """
@@ -137,13 +137,13 @@ def convert_and_save_tif_greyscale(image3D, output_path, filename='output.tif'):
         image = transforms.ToPILImage(mode='F')(tensor_image)
         image_list.append(image)
 
-    print('convert_and_save_tif:size of image:' + str(len(image_list)))
+    print(f'convert_and_save_tif:size of image:{len(image_list)}')
     with TiffImagePlugin.AppendingTiffWriter(output_path + filename, True) as tifWriter:
         for im in image_list:
             # with open(DATASET_FOLDER+tiff_in) as tiff_in:
             im.save(tifWriter)
             tifWriter.newFrame()
-    print("Conversion to tiff completed, image saved as {}".format(filename))
+    print(f"Conversion to tiff completed, image saved as {filename}")
 
 
 def create_mask(predicted, logger):
