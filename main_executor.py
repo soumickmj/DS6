@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 """
-
 """
 
 import argparse
@@ -61,6 +60,12 @@ if __name__ == '__main__':
     parser.add_argument('-test',
                         default=True,
                         help="To test the model")
+    parser.add_argument('-test_with_mip',
+                        default=False,
+                        help="To test the model with MIP")
+    parser.add_argument('-pseudo_train',
+                        default=False,
+                        help="To test the model with MIP")
     parser.add_argument('-predict',
                         default=False,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
@@ -79,7 +84,7 @@ if __name__ == '__main__':
                         default=True,
                         help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
     parser.add_argument('-deform',
-                        default=True,
+                        default=False,
                         action="store_true",
                         help="To use deformation for training")
     parser.add_argument('-clip_grads',
@@ -100,7 +105,7 @@ if __name__ == '__main__':
                         help="Number of epochs for training")
     parser.add_argument("-learning_rate",
                         type=float,
-                        default=0.01,
+                        default=0.001,
                         help="Learning rate")
     parser.add_argument("-patch_size",
                         type=int,
@@ -126,6 +131,45 @@ if __name__ == '__main__':
                         type=int,
                         default=8,
                         help="Number of worker threads")
+    parser.add_argument("-floss_coeff",
+                        type=float,
+                        default=0.7,
+                        help="Loss coefficient for floss in total loss")
+    parser.add_argument("-mip_loss_coeff",
+                        type=float,
+                        default=0.3,
+                        help="Loss coefficient for mip_loss in total loss")
+    parser.add_argument("-floss_param_smooth",
+                        type=float,
+                        default=1,
+                        help="Loss coefficient for floss_param_smooth")
+    parser.add_argument("-floss_param_gamma",
+                        type=float,
+                        default=0.75,
+                        help="Loss coefficient for floss_param_gamma")
+    parser.add_argument("-floss_param_alpha",
+                        type=float,
+                        default=0.7,
+                        help="Loss coefficient for floss_param_alpha")
+    parser.add_argument("-mip_loss_param_smooth",
+                        type=float,
+                        default=1,
+                        help="Loss coefficient for mip_loss_param_smooth")
+    parser.add_argument("-mip_loss_param_gamma",
+                        type=float,
+                        default=0.75,
+                        help="Loss coefficient for mip_loss_param_gamma")
+    parser.add_argument("-mip_loss_param_alpha",
+                        type=float,
+                        default=0.7,
+                        help="Loss coefficient for mip_loss_param_alpha")
+    parser.add_argument("-k_folds",
+                        type=int,
+                        default=5,
+                        help="Set the number of folds for cross validation")
+    parser.add_argument("-wandb",
+                        default=True,
+                        help="Set this to true to include wandb logging")
 
     args = parser.parse_args()
 
@@ -146,17 +190,32 @@ if __name__ == '__main__':
 
     logger = Logger(MODEL_NAME, LOGGER_PATH).get_logger()
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
+    wandb = None
+    if str(args.wandb).lower() == "true":
+        import wandb
+
+        wandb.init(project="DS6_VesselSeg2", entity="ds6_vessel_seg2", notes=args.model_name)
+        wandb.config = {
+            "learning_rate": args.learning_rate,
+            "epochs": args.num_epochs,
+            "batch_size": args.batch_size,
+            "patch_size": args.patch_size,
+            "samples_per_epoch": args.samples_per_epoch,
+            "mip_loss_coeff": args.mip_loss_coeff,
+            "floss_coeff": args.floss_coeff
+        }
+
 
     # Model
-    model = getModel(args.model)
+    model = torch.nn.DataParallel(getModel(args.model, OUTPUT_PATH + "/" + MODEL_NAME))
     model.cuda()
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
     writer_validating = SummaryWriter(TENSORBOARD_PATH_VALIDATION)
 
     pipeline = Pipeline(cmd_args=args, model=model, logger=logger,
-                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH, 
-                        writer_training=writer_training, writer_validating=writer_validating)
+                        dir_path=DATASET_FOLDER, checkpoint_path=CHECKPOINT_PATH,
+                        writer_training=writer_training, writer_validating=writer_validating, test_logger=test_logger, wandb=wandb)
 
     # loading existing checkpoint if supplied
     if bool(LOAD_PATH):
@@ -170,8 +229,29 @@ if __name__ == '__main__':
 
     if args.test:
         if args.load_best:
-            pipeline.load(load_best=True)
+            if bool(LOAD_PATH):
+                pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
+            else:
+                pipeline.load(load_best=args.load_best)
         pipeline.test(test_logger=test_logger)
+        torch.cuda.empty_cache()  # to avoid memory errors
+
+    if args.test_with_mip:
+        if args.load_best:
+            if bool(LOAD_PATH):
+                pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
+            else:
+                pipeline.load(load_best=args.load_best)
+        pipeline.test_with_MIP(test_logger=test_logger)
+        torch.cuda.empty_cache()  # to avoid memory errors
+
+    if args.pseudo_train:
+        if args.load_best:
+            if bool(LOAD_PATH):
+                pipeline.load(checkpoint_path=LOAD_PATH, load_best=args.load_best)
+            else:
+                pipeline.load(load_best=args.load_best)
+        pipeline.pseudo_train(test_logger=test_logger)
         torch.cuda.empty_cache()  # to avoid memory errors
 
     if args.predict:

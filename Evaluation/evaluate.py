@@ -10,6 +10,7 @@ Purpose :
 import torch
 import torch.nn as nn
 import torch.utils.data
+import numpy as np
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -59,6 +60,8 @@ class FocalTverskyLoss(nn.Module):
         self.smooth = smooth
         self.gamma = gamma
         self.alpha = alpha
+        for submodule in self.modules():
+            submodule.register_forward_hook(self.nan_hook)
 
     def forward(self, y_pred, y_true):
         y_true_pos = torch.flatten(y_true)
@@ -70,6 +73,18 @@ class FocalTverskyLoss(nn.Module):
                 true_pos + self.alpha * false_neg + (1 - self.alpha) * false_pos + self.smooth)
         # return pow((1 - pt_1), self.gamma)
         return pow(abs(1 - pt_1), self.gamma)
+
+    def nan_hook(self, module, inp, output):
+        nan_mask = torch.isnan(output)
+        if nan_mask.any():
+            print("In", self.__class__.__name__)
+            torch.save(inp, os.path.join(self.output_dir, 'nan_floss_ip.pt'))
+            module_params = module.named_parameters()
+            for name, param in module_params:
+                torch.save(param, os.path.join(self.output_dir, 'nan_floss_{}_param.pt'.format(name)))
+            raise RuntimeError(" classname " + self.__class__.__name__ + "i " + str(
+                i) + f" module: {module} classname {self.__class__.__name__} Found NAN in output {i} at indices: ",
+                               nan_mask.nonzero(), "where:", out[nan_mask.nonzero()[:, 0].unique(sorted=True)])
 
 
 class FocalTverskyLoss_detailed(nn.Module):
@@ -89,6 +104,37 @@ class FocalTverskyLoss_detailed(nn.Module):
         pt_1 = (true_pos + self.smooth) / (
                 true_pos + self.alpha * false_neg + (1 - self.alpha) * false_pos + self.smooth)
         return pow((1 - pt_1), self.gamma)
+
+class MIP_Loss(nn.Module):
+    def __init__(self, smooth=1, gamma=0.75, alpha=0.7):
+        super(MIP_Loss, self).__init__()
+        self.smooth = smooth
+        self.gamma = gamma
+        self.alpha = alpha
+
+    def forward(self, y_pred, patches_batch, pre_loaded_labels, loss_fn, patch_size):
+        mip_loss = 0
+        for index, pred in enumerate(y_pred):
+            patch_subject_name = patches_batch['subjectname'][index]
+            label_3d = [lbl for lbl in pre_loaded_labels if lbl['subjectname'] == patch_subject_name][0]
+            label_3d = torch.from_numpy(label_3d['data']).float().cuda()
+            patch_width_coord, patch_length_coord, patch_depth_coord = patches_batch["start_coords"][index][0]
+
+            true_mip = torch.amax(label_3d, -1)
+            true_mip_patch = true_mip[patch_width_coord:patch_width_coord + patch_size,
+                             patch_length_coord:patch_length_coord + patch_size]
+            predicted_patch_mip = torch.amax(pred, -1)
+            pad = ()
+            for dim in range(len(true_mip_patch.shape)):
+                target_shape = true_mip_patch.shape[::-1]
+                pad_needed = patch_size - target_shape[dim]
+                pad_dim = (pad_needed // 2, pad_needed - (pad_needed // 2))
+                pad += pad_dim
+
+            true_mip_patch = torch.nn.functional.pad(true_mip_patch, pad[:6], value=np.finfo(np.float).eps)
+            mip_loss += loss_fn(predicted_patch_mip, true_mip_patch)
+        mip_loss = mip_loss / (len(y_pred) + 0.0001)
+        return mip_loss
 
 
 def getMetric(logger, y_pred, y_true):
