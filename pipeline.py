@@ -51,7 +51,7 @@ class Pipeline:
         self.MODEL_NAME = cmd_args.model_name
         self.model_type = cmd_args.model
         self.lr_1 = cmd_args.learning_rate
-        self.logger.info("learning rate " + str(self.lr_1))
+        self.logger.info(f"learning rate {str(self.lr_1)}")
         # self.optimizer = torch.optim.Adam(model.parameters(), lr=cmd_args.learning_rate)
         self.optimizer = Madam(model.parameters(), lr=cmd_args.learning_rate)
         self.num_epochs = cmd_args.num_epochs
@@ -117,30 +117,25 @@ class Pipeline:
                         get_subjects_only=False,
                         transforms=None):
         if is_train:
-            trainDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
-                                dir_path=vol_path,
-                                label_dir_path=label_path,
-                                # TODO: implement non-iso patch-size, now only using the first element
-                                stride_depth=self.stride_depth, stride_length=self.stride_length,
-                                stride_width=self.stride_width, Size=None, fly_under_percent=None,
-                                # TODO: implement fly_under_percent, if needed
-                                patch_size_us=self.patch_size, pre_interpolate=None, norm_data=False,
-                                pre_load=True,
-                                return_coords=True,
-                                files_us=crossvalidation_set)  # TODO implement patch_size_us if required - patch_size//scaling_factor
-            if get_subjects_only:
-                return trainDS
-            # sampler = tio.data.UniformSampler(self.patch_size)
-            # patches_queue = tio.Queue(
-            #     trainDS,
-            #     max_length=(self.samples_per_epoch // len(trainDS.pre_loaded_data['pre_loaded_img'])) * 2,
-            #     samples_per_volume=1,
-            #     sampler=sampler,
-            #     num_workers=0,
-            #     start_background=True
-            # )
-            # return patches_queue
-            return trainDS
+            return SRDataset(
+                logger=self.logger,
+                patch_size=self.patch_size,
+                dir_path=vol_path,
+                label_dir_path=label_path,
+                # TODO: implement non-iso patch-size, now only using the first element
+                stride_depth=self.stride_depth,
+                stride_length=self.stride_length,
+                stride_width=self.stride_width,
+                Size=None,
+                fly_under_percent=None,
+                # TODO: implement fly_under_percent, if needed
+                patch_size_us=self.patch_size,
+                pre_interpolate=None,
+                norm_data=False,
+                pre_load=True,
+                return_coords=True,
+                files_us=crossvalidation_set,
+            )
         elif is_validate:
             validationDS = SRDataset(logger=self.logger, patch_size=self.patch_size,
                                      dir_path=vol_path,
@@ -186,12 +181,8 @@ class Pipeline:
 
             overlap = np.subtract(self.patch_size, (self.stride_length, self.stride_width, self.stride_depth))
             grid_samplers = []
-            for i in range(len(subjects)):
-                grid_sampler = tio.inference.GridSampler(
-                    subjects[i],
-                    self.patch_size,
-                    overlap,
-                )
+            for subject_ in subjects:
+                grid_sampler = tio.inference.GridSampler(subject_, self.patch_size, overlap)
                 grid_samplers.append(grid_sampler)
             return torch.utils.data.ConcatDataset(grid_samplers)
 

@@ -17,10 +17,7 @@ class Madam(Optimizer):
             closure (callable, optional): A closure that reevaluates the model
                 and returns the loss.
         """
-        loss = None
-        if closure is not None:
-            loss = closure()
-
+        loss = closure() if closure is not None else None
         for group in self.param_groups:
             for p in group['params']:
                 if p.grad is None:
@@ -35,11 +32,11 @@ class Madam(Optimizer):
                 state['step'] += 1
                 bias_correction = 1 - 0.999 ** state['step']
                 state['exp_avg_sq'] = 0.999 * state['exp_avg_sq'] + 0.001 * p.grad.data**2
-                
+
                 g_normed = p.grad.data / (state['exp_avg_sq']/bias_correction).sqrt()
                 g_normed[torch.isnan(g_normed)] = 0
                 g_normed.clamp_(-self.g_bound, self.g_bound)
-                
+
                 p.data *= torch.exp( -group['lr']*g_normed*torch.sign(p.data) )
                 p.data.clamp_(-state['max'], state['max'])
 
