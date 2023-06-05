@@ -1,11 +1,9 @@
-# DS6
-Official code of the paper "DS6, Deformation-aware Semi-supervised Learning: Application to Small Vessel Segmentation with Noisy Training Data" (https://arxiv.org/abs/2006.10802)
-Recording of the live-stream of the talk at Stanford University: https://youtu.be/p1RrvlMMhOI
+# PULASki
+Official code of the paper "PULASki: Learning inter-rater variability using statistical distances to improve probabilistic segmentation", that started as an extension to the work (mainly code) "DS6, Deformation-aware Semi-supervised Learning: Application to Small Vessel Segmentation with Noisy Training Data" (https://arxiv.org/abs/2006.10802)
 
-Docker container and pre-trained weights will soon be made available.
+This branch has been moved to its own repo: https://github.com/soumickmj/PULASki
 
-The name of this project "DS6" was selected as a tribute to Star Trek: Deep Space Nine (DS9).
-DS6 = Deformation-aware Segmentation, trained on 6 MR Volumes. 
+This branch thus won't be maintained anymore. All future updates will be pushed to the PULASki repo.
 
 ## Credits
 
