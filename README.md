@@ -18,7 +18,7 @@ Here's an example of how to use directly use weights from huggingface:
 ```
 Additional parameter "-load_huggingface" must be supplied along with the other desired paramters. Technically, this paramter can also be used to supply segmentation models other than the models used in DS6. 
 
-Here is an example of how to save the weights locally and then use it with this pipeline:
+Here is an example of how to save the weights locally (must be saved with .pth extension) and then use it with this pipeline:
 ```python
 from transformers import AutoModel
 modelHF = AutoModel.from_pretrained("soumickmj/DS6_UNetMSS3D_wDeform", trust_remote_code=True)

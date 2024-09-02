@@ -68,7 +68,7 @@ def load_model(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='
     Method to load model, make sure to set the model to eval, use optimiser if want to continue training
     """
     print('Loading model...')
-    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
+    checkpoint = torch.load(CHECKPOINT_PATH if CHECKPOINT_PATH.endswith(".pth") else os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
     if 'optimizer' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer'])
@@ -83,7 +83,7 @@ def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', f
     """
     print('Loading model...')
     model.cuda()
-    checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
+    checkpoint = torch.load(CHECKPOINT_PATH if CHECKPOINT_PATH.endswith(".pth") else os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     scaler = GradScaler()
