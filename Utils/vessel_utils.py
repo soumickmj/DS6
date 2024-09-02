@@ -90,6 +90,14 @@ def load_model_with_amp(model, optimizer, CHECKPOINT_PATH, batch_index='best', f
     model.eval()
     return model, optimizer, scaler
 
+def load_model_huggingface(pretrained_model_name_or_path):
+    """
+    Method to load model from huggingface
+    """
+    from transformers import AutoModel #importing transformers here as we only use it if loading models from huggingface. This way the code will not break if transformers is not installed
+    model = AutoModel.from_pretrained(pretrained_model_name_or_path, trust_remote_code=True)
+    model.eval()
+    return model
 
 def convert_and_save_tif(image3D, output_path, filename='output.tif', isColored=True):
     """

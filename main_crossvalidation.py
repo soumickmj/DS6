@@ -4,7 +4,7 @@
 """
 
 import argparse
-
+import os
 import apex
 import torch.utils.data
 from apex import amp
@@ -14,7 +14,7 @@ from crossvalidation import FoldManager
 from pipeline import Pipeline
 from Utils.logger import Logger
 from Utils.model_manager import getModel
-from Utils.vessel_utils import load_model, load_model_with_amp
+from Utils.vessel_utils import load_model, load_model_with_amp, load_model_huggingface
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -61,12 +61,17 @@ if __name__ == '__main__':
                         default="",
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
+    parser.add_argument('-load_huggingface',
+                        default="",
+                        help="Load model from huggingface model hub ex: 'soumickmj/DS6_UNetMSS3D_wDeform' [model param will be ignored]")
+    
     parser.add_argument('-load_path',
                         default="",
-                        help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint/ ")
+                        help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint/ [If this is supplied, load_huggingface will be ignored] ")
     parser.add_argument('-load_best',
                         default=False,
-                        help="Specifiy whether to load the best checkpoiont or the last")
+                        help="Specifiy whether to load the best checkpoiont or the last [Only if load_path is supplied]")
+    
     parser.add_argument('-deform',
                         default=False,
                         help="To use deformation for training")
@@ -120,6 +125,8 @@ if __name__ == '__main__':
     MODEL_NAME = args.model_name
     DATASET_FOLDER = args.dataset_path
     OUTPUT_PATH = args.output_path
+    
+    os.makedirs(OUTPUT_PATH, exist_ok=True)
 
     LOAD_PATH = args.load_path
     SET_NUMBER = args.set_number
@@ -150,7 +157,10 @@ if __name__ == '__main__':
         test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
         # Model
-        model = getModel(args.model)
+        if args.load_huggingface:
+            model = load_model_huggingface(args.load_huggingface)
+        else:
+            model = getModel(args.model)
         model.cuda()
 
         # No loading

@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from pipeline import Pipeline
 from Utils.logger import Logger
 from Utils.model_manager import getModel
-from Utils.vessel_utils import load_model, load_model_with_amp
+from Utils.vessel_utils import load_model, load_model_with_amp, load_model_huggingface
 
 __author__ = "Kartik Prabhu, Mahantesh Pattadkal, and Soumick Chatterjee"
 __copyright__ = "Copyright 2020, Faculty of Computer Science, Otto von Guericke University Magdeburg, Germany"
@@ -71,13 +71,17 @@ if __name__ == '__main__':
                         default="/vol3/schatter/DS6/Dataset/BiasFieldCorrected/300/test_label/vk04.nii.gz",
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
+    parser.add_argument('-load_huggingface',
+                        default="soumickmj/DS6_UNetMSS3D_wDeform",
+                        help="Load model from huggingface model hub ex: 'soumickmj/DS6_UNetMSS3D_wDeform' ")
+    
     parser.add_argument('-load_path',
-                        # default="/home/schatter/Soumick/Output/DS6/OrigVol_MaskedFDIPv0_UNetV2/checkpoint",
-                        default="/home/schatter/Soumick/Output/DS6/OriginalVols_FDPv0/UNetMSS_X2_Deform/checkpoint/",
-                        help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint")
+                        default="",
+                        help="Path to checkpoint of existing model to load, ex:/home/model/checkpoint/ [If this is supplied, load_huggingface will be ignored] ")
     parser.add_argument('-load_best',
-                        default=True,
-                        help="Specifiy whether to load the best checkpoiont or the last. Also to be used if Train and Test both are true.")
+                        default=False,
+                        help="Specifiy whether to load the best checkpoiont or the last [Only if load_path is supplied]")
+    
     parser.add_argument('-deform',
                         default=True,
                         action="store_true",
@@ -135,6 +139,8 @@ if __name__ == '__main__':
     MODEL_NAME = args.model_name
     DATASET_FOLDER = args.dataset_path
     OUTPUT_PATH = args.output_path
+    
+    os.makedirs(OUTPUT_PATH, exist_ok=True)
 
     LOAD_PATH = args.load_path
     CHECKPOINT_PATH = OUTPUT_PATH + "/" + MODEL_NAME + '/checkpoint/'
@@ -148,7 +154,10 @@ if __name__ == '__main__':
     test_logger = Logger(MODEL_NAME + '_test', LOGGER_PATH).get_logger()
 
     # Model
-    model = getModel(args.model)
+    if args.load_huggingface:
+        model = load_model_huggingface(args.load_huggingface)
+    else:
+        model = getModel(args.model)
     model.cuda()
 
     writer_training = SummaryWriter(TENSORBOARD_PATH_TRAINING)
