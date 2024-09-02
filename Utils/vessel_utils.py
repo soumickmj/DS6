@@ -70,7 +70,8 @@ def load_model(model, optimizer, CHECKPOINT_PATH, batch_index='best', filename='
     print('Loading model...')
     checkpoint = torch.load(os.path.join(CHECKPOINT_PATH, filename + str(batch_index) + '.pth'))
     model.load_state_dict(checkpoint['state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer'])
+    if 'optimizer' in checkpoint:
+        optimizer.load_state_dict(checkpoint['optimizer'])
     model.eval()
     return model, optimizer
 
