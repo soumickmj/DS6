@@ -46,12 +46,12 @@ if __name__ == '__main__':
                         default="Model_v1",
                         help="Name of the model")
     parser.add_argument("-dataset_path",
-                        default="/vol3/schatter/DS6/Dataset/OriginalVols/300",
+                        default="",
                         help="Path to folder containing dataset."
                              "Further divide folders into train,validate,test, train_label,validate_label and test_label."
                              "Example: /home/dataset/")
     parser.add_argument("-output_path",
-                        default="/home/schatter/Soumick/Output/DS6/OriginalVols_FDPv0",
+                        default="",
                         help="Folder path to store output "
                              "Example: /home/output/")
 
@@ -65,10 +65,10 @@ if __name__ == '__main__':
                         default=False,
                         help="To predict a segmentation output of the model and to get a diff between label and output")
     parser.add_argument('-predictor_path',
-                        default="/vol3/schatter/DS6/Dataset/BiasFieldCorrected/300/test/vk04.nii",
+                        default="",
                         help="Path to the input image to predict an output, ex:/home/test/ww25.nii ")
     parser.add_argument('-predictor_label_path',
-                        default="/vol3/schatter/DS6/Dataset/BiasFieldCorrected/300/test_label/vk04.nii.gz",
+                        default="",
                         help="Path to the label image to find the diff between label an output, ex:/home/test/ww25_label.nii ")
 
     parser.add_argument('-load_huggingface',
