@@ -7,7 +7,7 @@ Docker container and pre-trained weights will soon be made available.
 The name of this project "DS6" was selected as a tribute to Star Trek: Deep Space Nine (DS9).
 DS6 = Deformation-aware Segmentation, trained on 6 MR Volumes. 
 
- ## Model Weights
+## Model Weights
 The weights of the models trained during this research, as well as models trained on the SMILE-UHURA challenge dataset during the challenge to create baselines, have been made publicly available on Huggingface, and they can be found in the collection: [https://huggingface.co/collections/soumickmj/ds6-66d623af4a69536bcaf3c377](https://huggingface.co/collections/soumickmj/ds6-66d623af4a69536bcaf3c377). The designations "woDeform" and "wDeform" within the model names indicate that the respective model was trained without (baseline) and with (DS6) deformation-aware learning, respectively. Model names starting with "SMILEUHURA_DS6_" signify that they were trained on the SMILE-UHURA dataset, while names starting with only "DS6_" signify that they are the models trained during the original paper. 
 
 The weights can be directly be used pulling from Huggingface with the updated version of this pipeline, or the weights can be downloaded using the AutoModel class from the transformers package, saved as a checkpoint, and then the path to this saved checkpoint can be supplied to the pipeline using "-load_path" argument.
@@ -28,6 +28,9 @@ To run this pipeline with these downloaded weights, the path to the checkpoint m
 ```bash
 -load_path /path/to/checkpoint/model.pth
 ```
+
+## DS6 v2 -> SPOCKMIP
+A newer version of this pipeline as been published as SPOCKMIP: [https://github.com/soumickmj/SPOCKMIP](https://github.com/soumickmj/SPOCKMIP)
 
 ## Credits
 
