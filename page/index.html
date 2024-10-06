@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <!-- Meta tags for social media banners, these should be filled in appropriatly as they are your "business card" -->
+  <!-- Replace the content tag with appropriate information -->
+  <meta name="description" content="DESCRIPTION META TAG">
+  <meta property="og:title" content="SOCIAL MEDIA TITLE TAG"/>
+  <meta property="og:description" content="SOCIAL MEDIA DESCRIPTION TAG TAG"/>
+  <meta property="og:url" content="URL OF THE WEBSITE"/>
+  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X630-->
+  <meta property="og:image" content="static/image/your_banner_image.png" />
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
+
+
+  <meta name="twitter:title" content="TWITTER BANNER TITLE META TAG">
+  <meta name="twitter:description" content="TWITTER BANNER DESCRIPTION META TAG">
+  <!-- Path to banner image, should be in the path listed below. Optimal dimenssions are 1200X600-->
+  <meta name="twitter:image" content="static/images/your_twitter_banner_image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <!-- Keywords for your paper to be indexed by-->
+  <meta name="keywords" content="KEYWORDS SHOULD BE PLACED HERE">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+
+  <title>DS6, Deformation-Aware Semi-Supervised Learning: Application to Small Vessel Segmentation with Noisy Training Data</title>
+  <link rel="icon" type="image/x-icon" href="static/images/favicon.ico">
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+  rel="stylesheet">
+
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script src="https://documentcloud.adobe.com/view-sdk/main.js"></script>
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script src="static/js/bulma-carousel.min.js"></script>
+  <script src="static/js/bulma-slider.min.js"></script>
+  <script src="static/js/index.js"></script>
+</head>
+<body>
+
+
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">DS6, Deformation-Aware Semi-Supervised Learning: Application to Small Vessel Segmentation with Noisy Training Data</h1>
+            <div class="is-size-5 publication-authors">
+              <!-- Paper authors -->
+              <span class="author-block">
+                <a href="https://www.soumick.com/" target="_blank">Soumick Chatterjee</a><sup>1</sup><sup>*</sup>,</span>
+                <span class="author-block">
+                  <a href="https://www.linkedin.com/in/kartikprabhu20/" target="_blank">Kartik Prabhu</a><sup>1</sup><sup>†</sup>,</span>
+                  <span class="author-block">
+                    <a href="https://www.linkedin.com/in/mahantesh-pattadkal-7a2607101/" target="_blank">Mahantesh Pattadkal</a><sup>1</sup><sup>†</sup>,
+                  </span>
+                  <span class="author-block">
+                    <a href="https://www.linkedin.com/in/bortsovy/" target="_blank">Gerda Bortsova</a><sup>2</sup>,</span>
+                    <span class="author-block">
+                      <a href="https://www.linkedin.com/in/chompunuch-sarasaen/" target="_blank">Chompunuch Sarasaen</a><sup>1</sup>,</span>
+                      <span class="author-block">
+                        <a href="http://www.floriandubost.com/" target="_blank">Florian Dubost</a><sup>2</sup>,</span>
+                        <span class="author-block">
+                          <a href="https://hendrikmattern.github.io/" target="_blank">Hendrik Mattern</a><sup>1</sup>,</span>
+                          <span class="author-block">
+                            <a href="https://www.erasmusmc.nl/en/research/researchers/bruijne-de-marleen" target="_blank">Marleen de Bruijne</a><sup>2,3</sup>,</span>
+                            <span class="author-block">
+                              <a href="https://www.bmmr.ovgu.de/Team/Oliver+Speck.html" target="_blank">Oliver Speck</a><sup>1</sup>,</span>
+                              <span class="author-block">
+                                <a href="https://www.findke.ovgu.de/en/nuernberger.html" target="_blank">Andreas Nürnberger</a><sup>1</sup>,</span>
+                  </div>
+
+                  <div class="is-size-5 publication-authors">
+                    <span class="author-block"><sup>1</sup> Otto von Guericke University Magdeburg, Germany<br>
+                      <sup>2</sup> Erasmus MC, Rotterdam, The Netherlands<br>
+                      <sup>3</sup> University of Copenhagen, Denmark<br>
+                      <b>Journal of Imaging 2022, 8(10), 259</b></span>
+                    <span class="eql-cntrb"><small><br><sup>*</sup>Corresponding author</small></span>
+                    <span class="eql-cntrb"><small><br><sup>†</sup>These authors contributed equally to this work</small></span>
+                  </div>
+
+                  <div class="column has-text-centered">
+                    <div class="publication-links">
+                         <!-- Arxiv PDF link -->
+                      <span class="link-block">
+                        <a href="https://doi.org/10.3390/jimaging8100259" target="_blank"
+                        class="external-link button is-normal is-rounded is-dark">
+                        <span class="icon">
+                          <i class="fas fa-file-pdf"></i>
+                        </span>
+                        <span>Paper</span>
+                      </a>
+                    </span>
+
+                    <!-- Supplementary PDF link -->
+                    <span class="link-block">
+                      <a href="static/pdfs/supplementary_material.pdf" target="_blank"
+                      class="external-link button is-normal is-rounded is-dark">
+                      <span class="icon">
+                        <i class="fas fa-file-pdf"></i>
+                      </span>
+                      <span>Supplementary</span>
+                    </a>
+                  </span>
+
+                  <!-- Github link -->
+                  <span class="link-block">
+                    <a href="https://github.com/soumickmj/DS6" target="_blank"
+                    class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                      <i class="fab fa-github"></i>
+                    </span>
+                    <span>Code</span>
+                  </a>
+                </span>
+
+                <!-- ArXiv abstract Link -->
+                <span class="link-block">
+                  <a href="https://arxiv.org/abs/2006.10802" target="_blank"
+                  class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                    <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>arXiv</span>
+                </a>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- Teaser video-->
+<!-- <section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video poster="" id="tree" autoplay controls muted loop height="100%"> -->
+        <!-- Your video here -->
+        <!-- <source src="static/videos/banner_video.mp4"
+        type="video/mp4">
+      </video>
+      <h2 class="subtitle has-text-centered">
+        Aliquam vitae elit ullamcorper tellus egestas pellentesque. Ut lacus tellus, maximus vel lectus at, placerat pretium mi. Maecenas dignissim tincidunt vestibulum. Sed consequat hendrerit nisl ut maximus. 
+      </h2>
+    </div>
+  </div>
+</section> -->
+<!-- End teaser video -->
+
+<!-- Paper abstract -->
+<section class="section hero is-light">
+  <div class="container is-max-desktop">
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            Blood vessels of the brain provide the human brain with the required nutrients and oxygen. As a vulnerable part of the cerebral blood supply, pathology of small vessels can cause serious problems such as Cerebral Small Vessel Diseases (CSVD). It has also been shown that CSVD is related to neurodegeneration, such as Alzheimer’s disease. With the advancement of 7 Tesla MRI systems, higher spatial image resolution can be achieved, enabling the depiction of very small vessels in the brain. Non-Deep Learning-based approaches for vessel segmentation, e.g., Frangi’s vessel enhancement with subsequent thresholding, are capable of segmenting medium to large vessels but often fail to segment small vessels. The sensitivity of these methods to small vessels can be increased by extensive parameter tuning or by manual corrections, albeit making them time-consuming, laborious, and not feasible for larger datasets. This paper proposes a deep learning architecture to automatically segment small vessels in 7 Tesla 3D Time-of-Flight (ToF) Magnetic Resonance Angiography (MRA) data. The algorithm was trained and evaluated on a small imperfect semi-automatically segmented dataset of only 11 subjects; using six for training, two for validation, and three for testing. The deep learning model based on U-Net Multi-Scale Supervision was trained using the training subset and was made equivariant to elastic deformations in a self-supervised manner using deformation-aware learning to improve the generalisation performance. The proposed technique was evaluated quantitatively and qualitatively against the test set and achieved a Dice score of 80.44 ± 0.83. Furthermore, the result of the proposed method was compared against a selected manually segmented region (62.07 resultant Dice) and has shown a considerable improvement (18.98%) with deformation-aware learning.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- End paper abstract -->
+
+
+<!-- Image carousel -->
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container">
+      <div id="results-carousel" class="carousel results-carousel">
+       <div class="item">
+        <!-- Your image here -->
+        <img src="static/images/jimaging-08-00259-g001.webp" alt="MY ALT TEXT"/>
+        <h2 class="subtitle has-text-centered">
+          Proposed network backbone: Modified U-Net Multi-scale Supervision (Modified U-Net MSS).
+        </h2>
+      </div>
+      <div class="item">
+        <!-- Your image here -->
+        <img src="static/images/jimaging-08-00259-g002.webp" alt="MY ALT TEXT"/>
+        <h2 class="subtitle has-text-centered">
+          The proposed network is based on Siamese architecture, using modified U-Net MSS as the backbone. The original input is fed to the first branch while the second branch receives the elastically deformed version of the input, both branches use the same U-Net MSS for segmentation. The segmentation output of the first branch is elastically deformed using a differentiable transformation layer and is then compared with the output of the second branch for consistency (images shown here are only representative and do not portray real results).
+        </h2>
+      </div>
+      <!-- <div class="item">
+        <img src="static/images/jimaging-08-00259-g004.png" alt="MY ALT TEXT"/>
+        <h2 class="subtitle has-text-centered">
+          Comparisons of different non-DL and DL methods with the maximum intensity project (MIP) of the input volume. Red indicates false negative and blue indicates false positive (MSFDF: multi-scale Frangi diffusion filter, U-Net MSS: U-Net multi-scale supervision).
+       </h2>
+     </div> -->
+     <div class="item">
+      <!-- Your image here -->
+      <img src="static/images/jimaging-08-00259-g005.webp" alt="MY ALT TEXT"/>
+      <h2 class="subtitle has-text-centered">
+        Violin plots showing the quantitative results of the experiments with training set sizes, for U-Net (a) and U-Net MSS (b) trained with and without deformation-aware learning.
+      </h2>
+    </div>
+    <div class="item">
+     <!-- Your image here -->
+     <img src="static/images/jimaging-08-00259-g007.png" alt="MY ALT TEXT"/>
+     <h2 class="subtitle has-text-centered">
+      Qualitative evaluation of various methods with ROI-specific MIPs. The ROI was selected to feature large to small-scale vessels and enable qualitative comparison across segmentation methods. Red colour indicates the false negative while blue represents the false positive while being compared against manual segmentation.
+     </h2>
+   </div>
+  </div>
+</div>
+</div>
+</section>
+<!-- End image carousel -->
+
+
+
+
+<!-- Youtube video -->
+<!-- <section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3">Video Presentation</h2>
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          
+          <div class="publication-video">
+            <iframe src="https://www.youtube.com/embed/p1RrvlMMhOI?si=mMIO_VuKIbbLlXkB" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section> -->
+<!-- End youtube video -->
+
+
+<!-- Video carousel -->
+<!-- <section class="hero is-small">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3">Another Carousel</h2>
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item item-video1">
+          <video poster="" id="video1" autoplay controls muted loop height="100%">
+            <source src="static/videos/carousel1.mp4"
+            type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-video2">
+          <video poster="" id="video2" autoplay controls muted loop height="100%">
+            <source src="static/videos/carousel2.mp4"
+            type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-video3">
+          <video poster="" id="video3" autoplay controls muted loop height="100%">
+            <source src="static/videos/carousel3.mp4"
+            type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section> -->
+<!-- End video carousel -->
+
+
+
+
+
+
+<!-- Paper poster -->
+<section class="hero is-small is-light">
+  <div class="hero-body">
+    <div class="container">
+      <h2 class="title">Poster</h2>
+
+      <iframe  src="static/pdfs/sample.pdf" width="100%" height="550">
+          </iframe>
+        
+      </div>
+    </div>
+  </section>
+<!--End paper poster -->
+
+
+<!--BibTex citation -->
+  <section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+      <h2 class="title">BibTeX</h2>
+      <pre><code>@Article{chatterjee2022ds6,
+          AUTHOR = {Chatterjee, Soumick and Prabhu, Kartik and Pattadkal, Mahantesh and Bortsova, Gerda and Sarasaen, Chompunuch and Dubost, Florian and Mattern, Hendrik and de Bruijne, Marleen and Speck, Oliver and Nürnberger, Andreas},
+          TITLE = {DS6, Deformation-Aware Semi-Supervised Learning: Application to Small Vessel Segmentation with Noisy Training Data},
+          JOURNAL = {Journal of Imaging},
+          VOLUME = {8},
+          YEAR = {2022},
+          NUMBER = {10},
+          ARTICLE-NUMBER = {259},
+          URL = {https://www.mdpi.com/2313-433X/8/10/259},
+          ISSN = {2313-433X},
+          DOI = {10.3390/jimaging8100259}
+}</code></pre>
+    </div>
+</section>
+<!--End BibTex citation -->
+
+
+  <footer class="footer">
+  <div class="container">
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+
+          <p>
+            This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a>.
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- Statcounter tracking code -->
+  
+<!-- You can add a tracker to track page visits by creating an account at statcounter.com -->
+
+    <!-- End of Statcounter Code -->
+
+  </body>
+  </html>
+
+  <style>
+    .collapsible {
+      background-color: #eee;
+      color: #444;
+      cursor: pointer;
+      padding: 18px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 15px;
+    }
+    .active,
+    .collapsible:hover {
+      background-color: #ccc;
+    }
+    .collapsible:after {
+      content: "\02795"; /* + */
+      font-size: 13px;
+      float: right;
+      margin-left: 5px;
+    }
+    .active:after {
+      content: "\2796"; /* - */
+    }
+    #toc {
+      padding: 0 18px;
+      display: none;
+      background-color: #f1f1f1;
+    }
+  </style>
+  <div style="position: fixed; top: 20px; left: 20px">
+    <button id="show-toc" type="button" class="collapsible">Table of Contents</button>
+    <ul id="toc"></ul>
+  </div>
+  <script type="text/javascript">
+    const h2s = document.getElementsByTagName("h2");
+    [...h2s].forEach((elm) => {
+      const item = document.createElement("li");
+      const anchor = document.createElement("a");
+      if (!elm.id) elm.id = elm.innerText;
+      anchor.href = `#${elm.id}`;
+      anchor.innerText = elm.innerText;
+      item.appendChild(anchor);
+      toc.appendChild(item);
+    });
+    document.getElementById("show-toc").addEventListener("click", function () {
+      this.classList.toggle("active");
+      const content = this.nextElementSibling;
+      if (content.style.display === "block") {
+        content.style.display = "none";
+      } else {
+        content.style.display = "block";
+      }
+    });
+  </script>

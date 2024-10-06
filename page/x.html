@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Magic Fixup</title>
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-GR3QBE9MVE"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-GR3QBE9MVE');
+</script>
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+  <link rel="icon" href="./static/favicon.svg" />
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+
+<body>
+
+  <style>
+    @media only screen and (max-width: 850px) {
+      .column.is-three-fifths {
+        width: 85%; /* Adjust the width as per your requirement */
+        margin: auto; /* Center the div */
+      }
+    }
+  </style>
+
+  <section class="hero" >
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-2 publication-title">
+              <small>
+                Magic Fixup<span style="font-weight:normal">:
+                  Streamlining Photo Editing <br> by Watching Dynamic Videos</span></h1>
+              </small>
+              <div>
+                <span class="author-block">
+                  <a href="https://hadizayer.github.io/">Hadi AlZayer</a><sup>1, 2</sup>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                <span class="author-block">
+                  <a href="https://likesum.github.ioc">Zhihao Xia</a><sup>1</sup>&nbsp;&nbsp;&nbsp;&nbsp;
+                </span>
+                <span class="author-block">
+                  <a href="https://ceciliavision.github.io">Xuaner (Cecilia) Zhang</a><sup>1</sup>&nbsp;&nbsp;&nbsp;&nbsp;
+                </span>
+                <span class="author-block">
+                  <a href="https://research.adobe.com/person/eli-shechtman/">Eli Shechtman</a><sup>1</sup>&nbsp;&nbsp;&nbsp;&nbsp;
+                </span>
+                <span class="author-block">
+                  <a href="https://jbhuang0604.github.io/">Jia-Bin Huang</a><sup>2</sup>&nbsp;&nbsp;&nbsp;&nbsp;
+                </span>
+                <span class="author-block">
+                  <a href="http://mgharbi.com">Michael Gharbi</a><sup>1</sup>
+                </span>
+              </div>
+    
+              <div class="is-size-5 publication-authors">
+                <span class="author-block"><sup>1</sup>Adobe</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                <span class="author-block"><sup>2</sup>University of Maryland<br>
+              </div>
+
+            <br> 
+            <div class="column has-text-centered">
+              <div class="publication-links">
+                <span class="link-block">
+                  <a href="./magic_fixup.pdf"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </span>
+                    <span>PDF</span>
+                  </a>
+                </span>
+                <span class="link-block">
+                  <a href="https://arxiv.org/abs/2403.13044"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                        <i class="ai ai-arxiv"></i>
+                    </span>
+                    <span>arXiv</span>
+                  </a>
+                </span>
+                <span class="link-block">
+                  <a href="#BibTeX"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon">
+                        <i class="fas fa-book"></i>
+                    </span>
+                    <span>BibTex</span>
+                    </a>
+                </span>
+
+                <span class="link-block">
+                <a href="https://github.com/adobe-research/MagicFixup"
+                class="external-link button is-normal is-rounded is-dark">
+              <span class="icon">
+                  <svg class="svg-inline--fa fa-github fa-w-16" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="github" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" data-fa-i2svg="">
+                    <path fill="currentColor" d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z">
+                    </path>
+                  </svg>
+              </span>
+              <span>Code</span>
+            </a>
+          </span>
+
+              </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="content" align="center" >
+          <video autoplay muted loop playsinline width="80%">
+            <source src="./static/videos/teaser.mp4" type="video/mp4">
+          </video>
+          <div class="content has-text-centered">
+            <p>
+              We enable users to edit images with simple a cut-and-paste like approach, and fixup those edits automatically.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+  <br>
+
+<!-- Abstract -->
+<section style="padding: 1.5rem 1.5rem 3rem 1.5rem;" class="section">
+  <div class="container is-max-desktop">
+
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 style="margin-top: 0.1rem;" class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            We propose a generative model that, given a coarsely edited image, synthesizes a photorealistic output that follows the prescribed layout. Our method transfers fine details from the original image and preserve the identity of its parts. Yet, it adapts it to the lighting and context defined by the new layout. Our key insight is that videos are a powerful source of supervision for this task: objects and camera motions provide many observations of how the world changes with viewpoint, lighting, and physical interactions. We construct an image dataset in which each sample is a pair of source and target frames extracted from the same video at randomly chosen time intervals. We warp the source frame toward the target using two motion models that mimic the expected test-time user edits. We supervise our model to translate the warped image into the ground truth, starting from a pretrained diffusion model. Our model design explicitly enables fine detail transfer from the source frame to the generated image, while closely following the user-specified layout. We show that by using simple segmentations and coarse 2D manipulations, we can synthesize a photorealistic edit faithful to the user's input while addressing second-order effects like harmonizing the lighting and physical interactions between edited objects.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!--/ Abstract -->
+
+<section class="hero is-small">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+      <h2 style="margin-top: 0.1rem;" class="title is-3">High level approach</h2>
+      <div class="content" align="center" >
+        <video autoplay muted loop playsinline controls width="100%">
+          <source src="./static/videos/magic_out_explainer.mp4" type="video/mp4">
+        </video>
+        <div class="content has-text-centered">
+          <p>
+            Videos carry useful information on how objects deform and interact in the real world. Leveraging that insight, we use video datasets to supervise photo editing as following: for each video, we sample a reference and target frames. Then, we warp the reference frame (using a combination of optical flow warping and affine transformations) to be aligned with the target and produce a "coarse" edit. Then, we train a diffusion-based model to clean up the coarse edit by computing the reconstruction loss against the target frame as ground truth.
+          </p>
+        </div>
+      </div>
+      </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+  <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-three-fifths">
+        <div class="container">
+          <h2 class="title is-3">Spatial recomposition results</h2>
+          <p>By spatially rearranging the scene in a coarse way, we can quickly clean up the edit and make it photorealistic through Magic Fixup, fixing up the global illumination, connecting edited pieces together, and addressing moving objects to different regions of focus. </p> <br>
+          <div class="content has-text-justified">
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Magic Fixup </label>
+
+
+                  <label class="label" id="example1_refocusing_w" style="width: 32%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/cornell_box_v1.jpg" border="1" class="zoom">
+                  </label>
+                  <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/cornell_box_v1__inpainted__004.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/cornell_box_v1__edit__004_output_2.jpg" border="1" class="zoom"></label>
+
+                <label class="label" id="example1_refocusing_w" style="width: 32%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/pipes.jpg" border="1" class="zoom"></label>
+              <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/applications_images/pipes__inpainted__010.jpg" border="1" class="zoom"></label>
+
+                <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/pipes__edit__010_output.jpg" border="1" class="zoom"></label>
+                  <label class="label" id="example1_refocusing_w" style="width: 32%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/oranges_og.jpg" border="1" class="zoom">
+                  </label>
+                  <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/oranges__inpainted__005.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 32%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/oranges__edit__005_output_sample_9.jpg" border="1" class="zoom"></label>
+
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <!-- <div class="column is-three-fifths"> -->
+        <div class="container">
+          <h2 class="title is-3">Misc. editing</h2>
+          <div class="content has-text-justified"><center>
+            <h2 class="title is-4">Perspective editing</h2>
+            <p> Inspired by ZoomShop (Liu et al. 2022), we edit the scene perspective by rendering regions at different depths with different focal lengths. To clean up the editing, ZoomShop required as many as 4 hours of manual editing. However, with Magic Fixup, this can be done in less than 5 seconds! The ZoomShop outputs are not directly comparable, since they do not use the coarse edit we create, but they are results taken directly from the ZoomShop paper for reference. </p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                MagicFixup (ours) </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  SDEdit </label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                    ZoomShop (for reference only) </label>
+
+                <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/zoomshop_correct/lighthouse_og.jpg" border="1" class="zoom">
+                </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/zoomshop_correct/lighthouse__inpainted__00.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/zoomshop_correct/lighthouse_output.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/zoomshop_correct/lighthouse__edit__00_sdedit.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/zoomshop_correct/lighthouse_zoomshop.jpg" border="1" class="zoom"></label>
+
+
+
+
+
+                  <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/zoomshop_correct/versailles_og.jpg" border="1" class="zoom">
+                  </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/zoomshop_correct/versailles__inpainted__02.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/zoomshop_correct/versailles__edit__02_output.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/zoomshop_correct/versailles__edit__02_sdedit.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/images/zoomshop_correct/versailles_zoomshop.jpg" border="1" class="zoom"></label>
+          </div>
+          <br>
+          <center>
+          <h2 class="title is-4">Colorization</h2>
+            <p> Although the model was not trained to see any color editing, we find that by coloring objects with partial opacity brush, we can get a much cleaner edit through Magic Fixup. Here we show multiple samples to highlight the diverse generation we get from Magic Fixup. </p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Ours (sample 1) </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Ours (sample 2) </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Baseline (SDEdit) </label>
+
+              
+
+                  <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/colorization/teddy_Bear/teddy_og.jpg" border="1" class="zoom">
+                  </label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/colorization/teddy_Bear/teddy__edit__04.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/colorization/teddy_Bear/teddy__edit__04_output_005.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/colorization/teddy_Bear/teddy__edit__04_output_000.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/images/colorization/teddy_Bear/teddy__edit__04_sdedit.jpg" border="1" class="zoom"></label>
+
+
+                      <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                <img src="./static/images/colorization/teddy_Bear/teddy_og.jpg" border="1" class="zoom">
+              </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+              <img src="./static/images/colorization/teddy_Bear/teddy__edit__08.jpg" border="1" class="zoom"></label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/colorization/teddy_Bear/teddy__edit__08_output_002.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/colorization/teddy_Bear/teddy__edit__08_output_005.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/colorization/teddy_Bear/teddy__edit__08_sdedit.jpg" border="1" class="zoom"></label>
+
+
+                    <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/colorization/mustang/mustang_og.jpg" border="1" class="zoom">
+                    </label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/colorization/mustang/mustang__edit__00.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/colorization/mustang/mustang__edit__00_output_002.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/images/colorization/mustang/mustang__edit__00_output_sd_1_004.jpg" border="1" class="zoom"></label>
+                        <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                          <img src="./static/images/colorization/mustang/mustang__edit__00_sdedit.jpg" border="1" class="zoom"></label>
+
+              
+                <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/colorization/mustang/mustang_og.jpg" border="1" class="zoom">
+                </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/colorization/mustang/mustang__edit__04.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/colorization/mustang/mustang__edit__04_output_sd_9_009.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/colorization/mustang/mustang__edit__04_output_sd_9_007.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/colorization/mustang/mustang__edit__04_sdedit.jpg" border="1" class="zoom"></label>
+
+                    
+
+        </div>
+        <!-- </div> -->
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="container">
+          <h2 class="title is-3">Fixing up photoshop</h2>
+          <div class="content has-text-justified"><center>
+            <p>
+              Since our model only expects the original and edit images as input, we can directly do our editing in Photoshop and take advantage of all the editing tools it provides! Here we use puppet warp to repose a bonsai and make Lex finally have a big smile.
+            </p>
+          </center>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                MagicFixup (ours) </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  SDEdit </label>
+
+                  <label class="label" id="example1_refocusing_w" style="width: 24%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/photoshop_edits/bonsai_og.jpg" border="1" class="zoom">
+                  </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/photoshop_edits/bonsai__inpainted__00.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/photoshop_edits/bonsai__edit__00_output_sd_1_001.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/photoshop_edits/bonsai__edit__00_sdedit.jpg" border="1" class="zoom"></label>
+
+                <label class="label" id="example1_refocusing_w" style="width: 24%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/photoshop_edits/lex_og.jpg" border="1" class="zoom">
+                </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/photoshop_edits/lex__inpainted__00.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/photoshop_edits/lex__edit__00_output_sd_1_001.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/photoshop_edits/lex__edit__00_sdedit.jpg" border="1" class="zoom"></label>
+
+                    
+
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="container">
+          <h2 class="title is-3">Beyond real photos</h2>
+          <div class="content has-text-justified">
+            <center><p> While we filter out the majority of non-photorealistic videos in our training data, we notice that Magic Fixup can still generalize to new domains. By providing the reference image to the model through the detail extraction network, we can preserve the global image identity.  </p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Magic Fixup (ours) </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                SDEdit </label>
+              
+                <label class="label" id="example1_refocusing_w" style="width: 24%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/goku_og.jpg" border="1" class="zoom">
+                </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/applications_images/goku__inpainted__00.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/goku__edit__00_output_sd_1_024.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/goku__edit__00_sdedit.jpg" border="1" class="zoom"></label>
+
+                  <label class="label" id="example1_refocusing_w" style="width: 24%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/still_life_1_og.jpg" border="1" class="zoom">
+                  </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/still_life_1__inpainted__001.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/still_life_1__edit__001_output.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/applications_images/still_life_1__edit__001_sdedit.jpg" border="1" class="zoom"></label>
+
+                  <label class="label" id="example1_refocusing_w" style="width: 24%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/wall-e_sq_og.jpg" border="1" class="zoom">
+                  </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/wall-e_sq__inpainted__069.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/wall-e_sq__edit__069_output.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/applications_images/wall-e_sq__edit__069_sdedit.jpg" border="1" class="zoom"></label>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+          <div class="column is-four-fifths">
+        <h2 style="margin-top: 0.1rem;" class="title is-3">User interface demo</h2>
+        <div class="content" align="center" >
+          <video autoplay muted loop playsinline controls width="100%">
+            <source src="./static/videos/UI_demo.mp4" type="video/mp4">
+          </video>
+          <div class="content has-text-centered">
+            <p>
+             We created a user interface, we call it the Collage Transform, where users can simply segment objects (or parts), and apply affine transformation, duplicate, or delete the segments as a simplified yet expressive editing interface. Here we show an example for using our interface (we speed up the segmentation and sampling time for brevity).
+            </p>
+          </div>
+        </div>
+        </div>
+        </div>
+  
+      </div>
+    </div>
+  </section>
+    <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="container">
+          <h2 class="title is-3">Comparison with baselines</h2>
+          <div class="container">
+            <h2 class="title is-4">comparison with text-based methods</h2>
+            <p>
+              Here we compare our method against text-based editing methods InstructPix2Pix (Brooks et al. 2023) and Masa-ctrl (Cao et al. 2023). We attempt our best effort to describe the user edits in text prompts, but we want to stress that text is strictly less expressive than simply editing the image directly. Note that for methods that rely on DDIM inversion (like Masa-ctrl below), because DDIM inversion is not always reliable, the reconstruction can be significantly different from the input image (as shown in the fox example). On the other hand, our method takes the edited image directly, so it is consistently faithful to the input and faster to run.  <b> <a href="./static/text_comparisons.html">More comparison results here</a></b>. <br>
+            </p> 
+            <div class="content has-text-justified">
+              <br>
+              <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Reference image </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  User edit </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Magic Fixup (ours) </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  InstructPix2Pix </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Masa-Ctrl </label>
+                <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/fox_drinking_og.jpg" border="1" class="zoom">
+                </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/applications_images/fox_drinking__inpainted__018.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/fox_drinking__edit__018_output.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/instruct_pix2pix_outputs/outputs/fox_drinking_output.jpg" border="1" class="zoom"></label>
+                  <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/masactrl_out/fox_drinking.jpg" border="1" class="zoom"> </label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      </label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                       </label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      </label>
+                    <label style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      <p> prompt: reflect the fox to the other side </p> </label>
+                    <label  style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      prompt: photo of a fox drinking on the right side </label>
+
+                      <br>
+                      <br>
+                      <br>
+
+
+                    <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/applications_images/desk2.jpg" border="1" class="zoom">
+                    </label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/desk2__edit__001.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/applications_images/desk2__edit__001_output.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/instruct_pix2pix_outputs/outputs/desk2_output.jpg" border="1" class="zoom"></label>
+                      <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                        <img src="./static/masactrl_out/desk.jpg" border="1" class="zoom"> </label>
+                        <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                        </label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                         </label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                        </label>
+                      <label style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                        <p> prompt: duplicate the cup on the table </p> </label>
+                      <label  style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                        prompt: two golden cups on table</label>
+                    
+                      
+              </div>
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="container">
+          <h2 class="title is-3">Comparison with reposing methods</h2>
+              <p>
+              By augmenting our user interface to keep track of dense correspondences, we can generate dragging key-handles for DragDiffusion (Shi et al. 2024), and the dense flow needed for Motion Guidance (Geng et al. 2024).
+              However, we find that both of these SoTA methods are unable to handle complex reposing scenarios. <br>
+            </p> 
+            <br>
+          <div class="content has-text-justified">
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+              Reference image </label>
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+              User edit </label>
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+              Magic Fixup (ours) </label>
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+              DragDiffusion </label>
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+              MotionGuidance </label>
+            <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+              <img src="./static/images/applications_images/lion_2_og.jpg" border="1" class="zoom"></label>
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+            <img src="./static/images/applications_images/lion_2__inpainted__001.jpg" border="1" class="zoom"></label>
+            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+              <img src="./static/images/applications_images/lion_2__edit__001_output.jpg" border="1" class="zoom"></label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/applications_images/lion_dragdiff.jpg" border="1" class="zoom"></label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/applications_images/lion_motion_guidance.jpg" border="1" class="zoom"></label>
+
+                <label class="label" id="example1_refocusing_w" style="width: 19%; vertical-jpg: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/white_horse_og.jpg" border="1" class="zoom">
+                </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/applications_images/white_horse__inpainted__036.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/applications_images/white_horse__edit__036_output.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/white_horse_dragdiff.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/applications_images/white_horse_motion_guidance.jpg"  border="1" class="zoom"></label>
+
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                       </label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                     </label>
+                    <label style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      Runtime: 5 seconds </label>
+                    <label style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      Runtime: 3 minutes </label>
+                    <label style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                      Runtime: 50 minutes </label>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+
+
+
+
+
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="container">
+          <h2 class="title is-3">Ablations</h2>
+          <div class="content has-text-justified"><center>
+            <h2 class="title is-4">Style transfer effect</h2>
+            <p> What happens if we pass in a reference image that is completely unrelated to the user edit? Here we attempt to understand how the reference and the edited image play a role in the generated image. We see that the reference image influences the global style with some influence on the details, but the content is driven by the provided edit. So the detail extraction network essentially passes the global appearance of the reference, and this explains why the model can handle domains it has not seen during training (like cartoons and sketches, as shown above). </p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User "edit" </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Sample 1 </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Sample 2 </label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                    Sample 3 </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/style_transfer/the_scream.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/photoshop_edits/bonsai_og.jpg" border="1" class="zoom"></label>
+
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/style_transfer/scream_to_bonsai_output_004.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/style_transfer/scream_to_bonsai_output_005.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/style_transfer/scream_to_bonsai_output_007.jpg" border="1" class="zoom"></label>
+                        <br>
+                        <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                          <img src="./static/style_transfer/starry_night.jpg" border="1" class="zoom"></label>
+                          <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                            <img src="./static/images/colorization/mustang/mustang_og.jpg" border="1" class="zoom"></label>
+          
+                            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                              <img src="./static/style_transfer/starrynight_to_mustang_output_000.jpg" border="1" class="zoom"></label>
+                              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                <img src="./static/style_transfer/starrynight_to_mustang_output_002.jpg" border="1" class="zoom"></label>
+                                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                  <img src="./static/style_transfer/starrynight_to_mustang_output_003.jpg" border="1" class="zoom"></label>
+                                  <br>
+                                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                    <img src="./static/images/colorization/teddy_Bear/teddy_og.jpg" border="1" class="zoom"></label>
+                                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                      <img src="./static/images/colorization/mustang/mustang_og.jpg" border="1" class="zoom"></label>
+                    
+                                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                        <img src="./static/style_transfer/teddy_to_mustang_output_000.jpg" border="1" class="zoom"></label>
+                                        <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                          <img src="./static/style_transfer/teddy_to_mustang_output_003.jpg" border="1" class="zoom"></label>
+                                          <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                            <img src="./static/style_transfer/teddy_to_mustang_output_004.jpg" border="1" class="zoom"></label>
+
+
+                                  
+
+            <br>                 
+          </div>
+          <br>
+            <center>
+            <h2 class="title is-4">Motion model ablation</h2>
+            <p> During training, to align the reference and target frames from a video, we use two motion models: <b>(1) flow-based warping</b> where we use forward warping to warp the reference, and <b>(2) coarse affine transformations</b> where we segment everything in the image, and estimate the best affine transform per segment to align with the target. We show that using both types of transformation is essential, as using the flow model can help us preserve the details, and using the coarse affine transformations help us harmonize mis-aligned objects better and synthesize more content when needed. </p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Both motion models (ours) </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Flow motion model only </label>
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                    Affine motion model only </label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                <img src="./static/images/ablations/flamingo_og.jpg" border="1" class="zoom"></label>
+                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/ablations/flamingo__inpainted__005.jpg" border="1" class="zoom"></label>
+
+                  <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/ablations/flamingo__edit__005_output.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/ablations/flamingo__edit__005_output_flow.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/images/ablations/flamingo__edit__005_output_sample_collage.jpg" border="1" class="zoom"></label>
+                        <br>
+                        <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                          <img src="./static/images/ablations/farm_field_og.jpg" border="1" class="zoom"></label>
+                          <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                            <img src="./static/images/ablations/farm_field__inpainted__006.jpg" border="1" class="zoom"></label>
+          
+                            <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                              <img src="./static/images/ablations/farm_field__edit__006_output.jpg" border="1" class="zoom"></label>
+                              <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                <img src="./static/images/ablations/farm_field__edit__006_flow.jpg" border="1" class="zoom"></label>
+                                <label class="label" style="width: 19%; vertical-align: middle;margin: 0; padding: 0;">
+                                  <img src="./static/images/ablations/farm_field__edit__006_output_collage.jpg" border="1" class="zoom"></label>
+
+            <br>                 
+          </div>
+          <br>
+          <center>
+          <h2 class="title is-4">Latent noise initialization</h2>
+            <p> Diffusion models struggle to generate images with deep dynamic range when starting from pure noise, due to misalignment between training and inference. During training, the model always sees a noisy version of the ground truth (with variable level of noise), but never denoise from pure noise. To address this misalignment, we start the denoising process from a very noisy version of the user edit (instead of step <i>T</i> with pure noise, we start from step <i>T-1</i>)</p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  starting from our initialization </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                starting from pure noise </label>
+              
+                  <label class="label" id="example1_refocusing_w" style="width: 24%; vertical-jpg: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/ablations/all_orange_og.jpg" border="1" class="zoom">
+                  </label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/ablations/all_orange__inpainted__001.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/ablations/all_orange__edit__001_output.jpg" border="1" class="zoom"></label>
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/ablations/all_orange__edit__001_pure_noise.jpg" border="1" class="zoom"></label>
+                    
+
+        </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+  <section class="hero is-small">
+    <div class="hero-body">
+      <div class="columns is-centered has-text-centered">
+        <div class="container">
+          <h2 class="title is-3">Limitations</h2>
+          <div class="content has-text-justified"><center>
+            <p> Since we train the model on spatially editing the reference image, the model does not preserve the identity of inserted objects. Similar to what we show in the style transfer section above, the model will stylize the inserted objects in the style of the original image rather than preserving its identity well. </p> </center> <br>
+            <div class="field-body" style="display:flex; flex-wrap: wrap; justify-content: space-between; align-items: center; vertical-align: middle;">
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Reference image </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                User edit </label>
+              <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                Sample 1 </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;  text-align: center;">
+                  Sample 2 </label>
+                <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                  <img src="./static/images/colorization/teddy_Bear/teddy_og.jpg" border="1" class="zoom"></label>
+
+                  <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                    <img src="./static/images/limitations/teddy__edit__07.jpg" border="1" class="zoom"></label>
+                    <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                      <img src="./static/images/limitations/teddy__edit__07_output_006.jpg" border="1" class="zoom"></label>
+                      <label class="label" style="width: 24%; vertical-align: middle;margin: 0; padding: 0;">
+                        <img src="./static/images/limitations/teddy__edit__07_output_007.jpg" border="1" class="zoom"></label>
+          </div>
+          <br>
+        </div>
+      </div>
+    </div>
+  </section>
+  <br>
+
+
+  <!-- <div class="hero-body">
+    <div class="container">
+      <h2 class="title is-3 has-text-centered"><b>Stablization from handheld captures</b></h2>
+    </div>
+    <br>
+    <div class="container is-max-desktop">
+      <div class="content" align="center">
+        <video autoplay muted loop playsinline width="80%">
+          <source src="./static/videos/2DCompare.mp4" type="video/mp4">
+        </video>
+       <video id="teaser" autoplay muted playsinline loop>
+          <source src="./static/videos/2DCompare.mp4" type="video/mp4">
+        </video> -->
+        <!-- <div class="content has-text-centered">
+
+        </div>
+      </div>
+    </div>
+    <br>
+  </div> --> 
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code> @article{alzayer2024magicfixup,
+      title={Magic Fixup: Streamlining Photo Editing by Watching Dynamic Videos}, 
+      author={Alzayer, Hadi and Xia, Zhihao and Zhang, Xuaner and Shechtman, Eli and Huang, Jia-Bin and Gharbi, Michael},
+      year={2024},
+      eprint={2403.13044},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
+  }
+    </code></pre>
+</div>
+</section>
+
+  
+
+  <br>
+  <div class="columns is-centered has-text-right">
+    <div class="column is-8">
+      <div class="content">
+        <p>
+          <small><small>
+            Template from <a href="https://nerfies.github.io/">Nerfies</a>
+          </small></small>
+        </p>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
+
+<style>
+	.collapsible {
+		background-color: #eee;
+		color: #444;
+		cursor: pointer;
+		padding: 18px;
+		width: 100%;
+		border: none;
+		text-align: left;
+		outline: none;
+		font-size: 15px;
+	}
+	.active,
+	.collapsible:hover {
+		background-color: #ccc;
+	}
+	.collapsible:after {
+		content: "\02795"; /* + */
+		font-size: 13px;
+		float: right;
+		margin-left: 5px;
+	}
+	.active:after {
+		content: "\2796"; /* - */
+	}
+	#toc {
+		padding: 0 18px;
+		display: none;
+		background-color: #f1f1f1;
+	}
+</style>
+<div style="position: fixed; top: 20px; left: 20px">
+	<button id="show-toc" type="button" class="collapsible">Table of Contents</button>
+	<ul id="toc"></ul>
+</div>
+<script type="text/javascript">
+	const h2s = document.getElementsByTagName("h2");
+	[...h2s].forEach((elm) => {
+		const item = document.createElement("li");
+		const anchor = document.createElement("a");
+		if (!elm.id) elm.id = elm.innerText;
+		anchor.href = `#${elm.id}`;
+		anchor.innerText = elm.innerText;
+		item.appendChild(anchor);
+		toc.appendChild(item);
+	});
+	document.getElementById("show-toc").addEventListener("click", function () {
+		this.classList.toggle("active");
+		const content = this.nextElementSibling;
+		if (content.style.display === "block") {
+			content.style.display = "none";
+		} else {
+			content.style.display = "block";
+		}
+	});
+</script>
